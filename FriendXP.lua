@@ -1187,7 +1187,7 @@ function FriendXP:OnInitialize()
      relativePoint = "TOPLEFT",
     },
     border = {
-     border = "ArkInventory Square 3", -- Whatever the default, need to include it myself
+     border = "Blizzard Dialog", -- Whatever the default, need to include it myself
      bordersize = 16,
      color = {
       r = 1,
