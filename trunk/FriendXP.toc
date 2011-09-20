@@ -1,0 +1,15 @@
+## Interface: 40200
+## Title: FriendXP
+## Version: 1.0
+## Notes: Tracks friend's experience
+## Author: Bartruby
+## OptionalDeps: Ace3
+## X-Embeds: Ace3
+## SavedVariables: FriendXPDB
+
+embeds.xml
+
+Locales\Locales.xml
+
+Libs\LibDataBroker-1.1\LibDataBroker-1.1.lua
+FriendXP.lua
