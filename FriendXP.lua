@@ -1169,12 +1169,12 @@ function FriendXP:OnInitialize()
     incoming = {
      enabled = false,
      x = 0,
-     y = 0,
+     y = -16,
      width = 32,
      height = 32,
      texture = "Wireless Incoming",
-     point = "CENTER",
-     relativePoint = "CENTER",
+     point = "BOTTOMRIGHT",
+     relativePoint = "TOPRIGHT",
     },
     outgoing = {
      enabled = true,
