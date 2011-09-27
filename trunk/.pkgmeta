@@ -9,7 +9,7 @@ externals:
   url: svn://svn.wowace.com/wow/libstub/mainline
   tag: latest
  libs/CallbackHandler-1.0:
-  url: svn://svn.wowace.com/wow/callbackhandler/mainline/CallbackHandler-1.0
+  url: svn://svn.wowace.com/wow/callbackhandler/mainline/trunk/CallbackHandler-1.0
   tag: latest
  libs/LibDataBroker-1.1:
   url: git://git.wowace.com/wow/libdatabroker-1-1/mainline.git

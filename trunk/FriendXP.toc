@@ -1,8 +1,8 @@
 ## Interface: 40200
 ## Title: FriendXP
-## Version: 1.0
+## Version: 1.02
 ## Notes: Tracks friend's experience
-## Author: Bartruby
+## Author: Bartruby of Cairne
 ## OptionalDeps: Ace3
 ## X-Embeds: Ace3
 ## SavedVariables: FriendXPDB
