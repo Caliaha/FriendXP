@@ -1930,6 +1930,8 @@ function FriendXP:ToggleLock()
   xpbar.move:EnableMouse(true)
   xpbar.move:SetScript("OnMouseDown", function(self, button) FriendXP:DragStart(self, button, "friendbar") end)
   xpbar.move:SetScript("OnMouseUp", function(self, button) FriendXP:DragStop(self, button, "friendbar") end)
+  xpbar:SetAllPoints(xpbar.move)
+
   self.unlocked = true
  else
   self.unlocked = false
