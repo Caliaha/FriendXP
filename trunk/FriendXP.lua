@@ -22,6 +22,10 @@ local configGenerated = false;
 local activeFriend = "";
 
 
+-- local whatevers
+local gsub = string.gsub
+
+
 local launcher = LibStub:GetLibrary("LibDataBroker-1.1"):NewDataObject("FriendXP", {
  type = "launcher",
  label = "FriendXP",
@@ -74,6 +78,14 @@ local function giveOptions(self)
    get = function(info) return self.db.profile.checkOnline end,
    set = function(info, value) self.db.profile.checkOnline = value end,
   },
+  doLevelUp = {
+   name = "LevelUp Message",
+   desc = "Show a UIErrors message when a player levels up",
+   order = 4,
+   type = "toggle",
+   get = function(i) return self.db.profile.doLevelUp end,
+   set = function(i, v) self.db.profile.doLevelUp = v end,
+  },
   replyAll = {
    name = L["Send to all friends"],
    desc = "Send to all friends on friendlist that are on same server",
@@ -87,6 +99,13 @@ local function giveOptions(self)
    type = "toggle",
    get = function(i) return self.db.profile.partyAll end,
    set = function(i, v) self.db.profile.partyAll = v end,
+  },
+  bgAll = {
+   name = "Send to Battleground",
+   desc = "Send to party doesn't work in battlegrounds, enable this to share xp while in a battleground",
+   type = "toggle",
+   get = function(i) return self.db.profile.bgAll end,
+   set = function(i, v) self.db.profile.bgAll = v end,
   },
   guildAll = {
    name = L["Send to guild"],
@@ -186,6 +205,14 @@ local function giveOptions(self)
      hasAlpha = true,
      get = function(info) return self.db.profile.friendbar.text.color.r, self.db.profile.friendbar.text.color.g, self.db.profile.friendbar.text.color.b, self.db.profile.friendbar.text.color.a end,
      set = function(info, r, g, b, a) self.db.profile.friendbar.text.color.r = r; self.db.profile.friendbar.text.color.g = g; self.db.profile.friendbar.text.color.b = b; self.db.profile.friendbar.text.color.a = a; self:UpdateSettings() end,
+    },
+    formatstring = {
+     name = "Format String",
+     order = 3.5,
+     type = "input",
+     width = "double",
+     get = function(i) return self.db.profile.friendbar.formatstring end,
+     set = function(i, v) self.db.profile.friendbar.formatstring = v; if (activeFriend ~= "") then self:UpdateFriendXP_HELPER(activeFriend) end end,
     },
     styleheader = {
      name = L["Bar Style"],
@@ -617,6 +644,15 @@ local function giveOptions(self)
      get = function(info) return self.db.profile.miniframe.xp.text.color.r, self.db.profile.miniframe.xp.text.color.g, self.db.profile.miniframe.xp.text.color.b, self.db.profile.miniframe.xp.text.color.a end,
      set = function(info, r, g, b, a) self.db.profile.miniframe.xp.text.color.r = r; self.db.profile.miniframe.xp.text.color.g = g; self.db.profile.miniframe.xp.text.color.b = b; self.db.profile.miniframe.xp.text.color.a = a; self:UpdateMiniframe() end,
     },
+    formatstring = {
+     name = "Format String",
+     desc = "Changes the way information is displayed on the mini xp bars, default is %l: %n",
+     order = 5.914,
+     type = "input",
+     width = "double",
+     get = function(i) return self.db.profile.miniframe.formatstring end,
+     set = function(i, v) self.db.profile.miniframe.formatstring = v; self:UpdateMiniframe() end,
+    },
     flashoutgoingheader = {
      name = "Comm - Outgoing Indicator",
      order = 6,
@@ -899,13 +935,13 @@ function FriendXP:UpdateFriendXP_HELPER(friend)
   if (activeFriends[i]["name"] == friend) then
    self:Debug("UpdateFriendXP_HELPER matched: " .. friend)
    local ft = activeFriends[i]
-   self:UpdateFriendXP(ft["name"], ft["level"], ft["xp"], ft["totalxp"], ft["restbonus"], ft["xpdisabled"])
+   self:UpdateFriendXP(ft)
    return
   end
  end
 end
 
-function FriendXP:UpdateFriendXP(friend, level, xp, totalxp, restbonus, xpdisabled) -- Friendbar
+function FriendXP:UpdateFriendXP(ft) -- Friendbar
  -- Need to modify function to only need friend name/index to show friend
  -- May also need to work on the activeFriends table to make that easier
  -- like -- function FriendXP:UpdateFriendXP(id)
@@ -916,26 +952,55 @@ function FriendXP:UpdateFriendXP(friend, level, xp, totalxp, restbonus, xpdisabl
   xpbar:Show()
  end
 
- if (activeFriend ~= "" and activeFriend ~= friend) then
-  self:Debug("Returning because activeFriend " .. activeFriend .. " is not selected " .. friend)
+ if (activeFriend ~= "" and activeFriend ~= ft["name"]) then
+  self:Debug("Returning because activeFriend " .. activeFriend .. " is not selected " .. ft["name"])
   return
  end
 
- xpbar.xp:SetMinMaxValues(0, totalxp)
- xpbar.xp:SetValue(xp)
- xpbar.rest:SetMinMaxValues(0, totalxp)
+ xpbar.xp:SetMinMaxValues(0, ft["totalxp"])
+ xpbar.xp:SetValue(ft["xp"])
+ xpbar.rest:SetMinMaxValues(0, ft["totalxp"])
 
  local isDisabled = "";
- if (xpdisabled == 1) then
+ if (ft["xpdisabled"] == 1) then
   isDisabled = L["XPGainsDisabled"]
  end
- if (restbonus and restbonus > 0) then
-  xpbar.rest:SetValue(xp + restbonus)
-  xpbar.text:SetFormattedText("%s (%d): %d / %d (%d%%) " .. L["Remaining"] .. ": %d " .. L["Rested"] .. ": %d %s", friend, level, xp, totalxp, self:Round((xp/totalxp)*100), (totalxp - xp), restbonus, isDisabled)
+
+ if (ft["restbonus"] and ft["restbonus"] > 0) then
+  xpbar.rest:SetValue(ft["xp"] + ft["restbonus"])
+  --xpbar.text:SetFormattedText("%s (%d): %d / %d (%d%%) " .. L["Remaining"] .. ": %d " .. L["Rested"] .. ": %d %s", friend, level, xp, totalxp, self:Round((xp/totalxp)*100), (totalxp - xp), restbonus, isDisabled)
  else
   xpbar.rest:SetValue(0)
-  xpbar.text:SetFormattedText("%s (%d): %d / %d (%d%%) Remaining: %d %s", friend, level, xp, totalxp, self:Round((xp/totalxp)*100), (totalxp - xp), isDisabled)
+  --xpbar.text:SetFormattedText("%s (%d): %d / %d (%d%%) Remaining: %d %s", friend, level, xp, totalxp, self:Round((xp/totalxp)*100), (totalxp - xp), isDisabled)
  end
+ xpbar.text:SetText(self:FormatString(self.db.profile.friendbar.formatstring, ft))
+end
+
+function FriendXP:FormatString(string, ft)
+ local pname = ft["name"]
+ if (self.db.profile.miniframe.xp.namelen > 0) then
+  pname = strsub(ft["name"], 0, self.db.profile.miniframe.xp.namelen)
+ end
+ string = gsub(string, "%%n", pname)
+ string = gsub(string, "%%l", tostring(ft["level"]))
+ string = gsub(string, "%%xp", tostring(ft["xp"]))
+ string = gsub(string, "%%txp", tostring(ft["totalxp"]))
+ string = gsub(string, "%%p", self:Round((ft["xp"]/ft["totalxp"])*100))
+ string = gsub(string, "%%rm", ft["totalxp"] - ft["xp"])
+
+ if (ft["restbonus"] > 0) then
+  string = gsub(string, "(%%rs)(.-)(%%re)", "%2")
+  string = gsub(string, "%%r", tostring(ft["restbonus"]))
+ else
+  string = gsub(string, "%%rs.-%%re", "")
+ end
+ if (ft["xpdisabled"] == 1) then
+  string = gsub(string, "%%d", L["XPGainsDisabled"])
+ else
+  string = gsub(string, "%%d", "")
+ end
+
+ return string
 end
 
 function FriendXP:FlashFrame(frame)
@@ -988,7 +1053,7 @@ function FriendXP:SetupMiniframe()
 
  end
 
- if (self.db.profile.miniframe.enabled == true) then
+ if (self.db.profile.miniframe.enabled == true and self.db.profile.enabled) then
   Miniframe:Show()
  else
   Miniframe:Hide()
@@ -1023,7 +1088,7 @@ function FriendXP:UpdateMiniframe()
   return
  end
 
- if (self.db.profile.miniframe.enabled) then
+ if (self.db.profile.miniframe.enabled and self.db.profile.enabled) then
   Miniframe:Show()
  else
   Miniframe:Hide()
@@ -1087,7 +1152,8 @@ function FriendXP:UpdateMiniframe()
    pname = strsub(ft["name"], 0, self.db.profile.miniframe.xp.namelen)
   end
   frame.text:SetPoint("LEFT")
-  frame.text:SetFormattedText("%d:%s", ft["level"], pname)
+  frame.text:SetText(self:FormatString(self.db.profile.miniframe.formatstring, ft))
+  --frame.text:SetFormattedText("%d:%s", ft["level"], pname)
 
   -- Tooltip
   frame:SetScript("OnEnter", function() self:MiniTooltip(frame, true, ft) end)
@@ -1203,15 +1269,18 @@ function FriendXP:OnInitialize()
    checkOnline = true,
    sendAll = true,
    partyAll = true,
+   bgAll = false,
    guildAll = false,
    ignoreWhisper = false,
    onlyFriends = false,
+   doLevelUp = true,
    friendbar = {
     enabled = true,
     framelevel = 1,
     framestrata = "MEDIUM",
     x = maxwidth/2 - (maxwidth*0.50)/2,
     y = -20,
+    formatstring = "%n (%l): %xp / %txp (%p%) Remaining: %rm%rs Rested: %r%re %d",
     height = 16,
     width = 0.50,
     texture = "Blizzard",
@@ -1256,6 +1325,7 @@ function FriendXP:OnInitialize()
      enabled = true,
      combatDisable = true,
     },
+    formatstring = "%l: %n",
     enabled = true,
     framelevel = 1,
     framestrata = "MEDIUM",
@@ -1430,7 +1500,7 @@ function FriendXP:UpdateMedia(event, mediatype, key)
  elseif mediatype == "background" then
   if key == self.db.profile.miniframe.texture then doUpdate = true end
   if key == self.db.profile.miniframe.outgoing.texture then doUpdate = true end
-  --if key == self.db.profile.miniframe.incoming.texture then doUpdate = true end
+  if key == self.db.profile.miniframe.incoming.texture then doUpdate = true end
  end
  
  if doUpdate == true then
@@ -1453,16 +1523,16 @@ end
 
 function FriendXP:OnEnable()
  --self:RegisterEvent("PLAYER_XP_UPDATE","SendXP")
- self:RegisterBucketEvent({ "PLAYER_XP_UPDATE", "UPDATE_EXHAUSTION" }, 2, "SendXP")
+ self:RegisterBucketEvent({ "PLAYER_XP_UPDATE", "UPDATE_EXHAUSTION", "ENABLE_XP_GAIN", "DISABLE_XP_GAIN" }, 2, "SendXP")
  self:ScheduleRepeatingTimer("SendXP", 45)
  self:UpdateSettings()
  
- if (self.db.profile.friendbar.enabled == true) then
+ if (self.db.profile.friendbar.enabled == true and self.db.profile.enabled) then
   xpbar:Show()
  else
   xpbar:Hide()
  end
- if (self.db.profile.miniframe.enabled == true) then
+ if (self.db.profile.miniframe.enabled == true and self.db.profile.enabled) then
   Miniframe:Show()
  else
   Miniframe:Hide()
@@ -1478,7 +1548,7 @@ function FriendXP:OnDisable()
 end
 
 function FriendXP:ToggleFriendbar()
- if (self.db.profile.friendbar.enabled == true) then
+ if (self.db.profile.friendbar.enabled == true and self.db.profile.enabled) then
   xpbar:Show()
  else
   xpbar:Hide()
@@ -1618,7 +1688,12 @@ function FriendXP:SendXP()
   self:SendCommMessage("friendxp", player .. ":" .. xp .. ":" .. xptotal .. ":" .. level .. ":" .. restbonus .. ":" .. xpdisabled .. ":" .. class, "GUILD", friend)
  end
 
- if (self.db.profile.partyAll) then -- Send to party
+ if (self.db.profile.bgAll and UnitInBattleground("player")) then -- Send to battleground (not yet implemented)
+  self:Debug("Sending to Battleground")
+  self:SendCommMessage("friendxp", player .. ":" .. xp .. ":" .. xptotal .. ":" .. level .. ":" .. restbonus .. ":" .. xpdisabled .. ":" .. class, "BATTLEGROUND", friend)
+ end
+
+ if (self.db.profile.partyAll and UnitInBattleground("player") == nil) then -- Send to party
   self:Debug("Sending to party")
   self:SendCommMessage("friendxp", player .. ":" .. xp .. ":" .. xptotal .. ":" .. level .. ":" .. restbonus .. ":" .. xpdisabled .. ":" .. class, "RAID", friend)
  end
@@ -1696,6 +1771,10 @@ function FriendXP:OnCommReceived(a,b,c,d)
   return
  end
 
+ if (c == "BATTLEGROUND" and self.db.profile.bgAll == false) then -- Only process BATTLEGROUND if Send to bg is enabled
+  return
+ end
+
  if (c == "RAID" and self.db.profile.partyAll == false) then -- Only process PARTY/RAID if send to party is enabled
   return
  end
@@ -1761,7 +1840,7 @@ function FriendXP:OnCommReceived(a,b,c,d)
   if (self.db.profile.miniframe.enabled and self.db.profile.miniframe.incoming.enabled) then -- Only flash on valid updates
    Miniframe.incoming:Show()
   end
-  self:UpdateFriendXP(name, tonumber(level), tonumber(xp), tonumber(xptotal), tonumber(restbonus), tonumber(xpdisabled))
+  --self:UpdateFriendXP(name, tonumber(level), tonumber(xp), tonumber(xptotal), tonumber(restbonus), tonumber(xpdisabled))
   if self.db.profile.debug then self.Print(self,"UpdateFriendX",name,level,xp,xptotal,restbonus,xpdisabled) end
   friendTable = {
    ["name"] = name,
@@ -1773,6 +1852,14 @@ function FriendXP:OnCommReceived(a,b,c,d)
    ["class"] = class,
    ["lastTime"] = GetTime(),
   }
+  self:UpdateFriendXP(friendTable)
+  if (self.db.profile.doLevelUp) then
+   local previousLevel = self:GetLevelByPlayer(name)
+   if (previousLevel ~= nil and previousLevel < tonumber(level)) then
+    self:DoLevelUp(name, level)
+   end
+  end
+
   local index = self:RemoveFromActive(name);
   if (index ~= -1) then
    self:Debug("OnCommReceived- Index " .. index)
@@ -1793,6 +1880,21 @@ function FriendXP:RemoveFromActive(friend)
   end
  end
  return -1
+end
+
+function FriendXP:GetLevelByPlayer(friend)
+ for i,v in ipairs(activeFriends) do
+  if (activeFriends[i]["name"] == friend) then
+   return activeFriends[i]["level"]
+  end
+ end
+ return nil
+end
+
+function FriendXP:DoLevelUp(friend, level)
+ UIErrorsFrame:AddMessage(friend .. " has reached level " .. level .. "!", 1.0, 1.0, 0.0, 1, 5)
+ PlaySoundFile("Sound\\interface\\LevelUp.wav")
+ return
 end
 
 function FriendXP:Round(n, precision)
@@ -1895,6 +1997,7 @@ function FriendXP:MiniTooltip(frame, show, fd)
   tooltip:AddLine("Experience:", fd["xp"] .. "/" .. fd["totalxp"] .. " (" .. self:Round((fd["xp"]/fd["totalxp"])*100) .. "%)")
   tooltip:AddLine("Rest Bonus:", fd["restbonus"])
   tooltip:AddLine("Remaining:", fd["totalxp"] - fd["xp"])
+  tooltip:AddLine("Bars Left:", self:Round((fd["totalxp"] - fd["xp"])/(fd["totalxp"]/20)))
   if (fd["xpdisabled"] == 1) then
    tooltip:AddLine(L["XPDisabled"])
   end
