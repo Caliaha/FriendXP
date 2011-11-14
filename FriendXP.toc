@@ -1,13 +1,15 @@
 ## Interface: 40200
 ## Title: FriendXP
-## Version: 1.03
+## Version: 1.04
 ## Notes: Tracks friend's experience
 ## Author: Bartruby of Cairne
 ## OptionalDeps: Ace3
 ## X-Embeds: Ace3
 ## SavedVariables: FriendXPDB
 
+#@no-lib-strip@
 embeds.xml
+#@end-no-lib-strip@
 
 Locales\Locales.xml
 

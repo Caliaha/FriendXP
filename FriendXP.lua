@@ -8,8 +8,10 @@ local LQT = LibStub("LibQTip-1.0")
 LSM:Register("background", "Wireless Icon", "Interface\\Addons\\FriendXP\\Artwork\\wlan_wizard.tga")
 LSM:Register("background", "Wireless Icon2", "Interface\\Addons\\FriendXP\\Artwork\\wlan_wizard2.tga")
 LSM:Register("background", "Wireless Incoming", "Interface\\Addons\\FriendXP\\Artwork\\wlan_incoming.tga")
+LSM:Register("background", "PartyXPBar", "Interface\\Addons\\FriendXP\\Artwork\\partyxpbar.tga")
 
 local activeFriends = { };
+local newFriends = { };
 local fonts = { };
 
 local Miniframes = { };
@@ -20,7 +22,6 @@ local xpbar = nil;
 
 local configGenerated = false;
 local activeFriend = "";
-
 
 -- local whatevers
 local gsub = string.gsub
@@ -85,6 +86,13 @@ local function giveOptions(self)
    type = "toggle",
    get = function(i) return self.db.profile.doLevelUp end,
    set = function(i, v) self.db.profile.doLevelUp = v end,
+  },
+  integrateParty = {
+   name = "Integrate with party frames",
+   desc = "Only works with default blizzard party frames",
+   type = "toggle",
+   get = function(i) return self.db.profile.integrateParty end,
+   set = function(i, v) self.db.profile.integrateParty = v; self:UpdatePartyMembers() end,
   },
   replyAll = {
    name = L["Send to all friends"],
@@ -898,7 +906,6 @@ function FriendXP:CreateFriendXPBar()
  xpbar.move:SetAllPoints(xpbar)
  xpbar.move:Hide()
 
-
  xpbar:Hide()
 end
 
@@ -928,9 +935,28 @@ function FriendXP:UpdateSettings()
 
  xpbar.text:SetFont(LSM:Fetch("font", self.db.profile.friendbar.text.font), self.db.profile.friendbar.text.size, self.db.profile.friendbar.text.style)
  xpbar.text:SetTextColor(self.db.profile.friendbar.text.color.r, self.db.profile.friendbar.text.color.g, self.db.profile.friendbar.text.color.b, self.db.profile.friendbar.text.color.a);
+
+ if (self.db.profile.enabled and self.db.profile.friendbar.enabled) then
+  xpbar:Show()
+ else
+  xpbar:Hide()
+ end
+end
+
+-- Returns friend table, really need to redo the activeFriends table to avoid all this looping
+function FriendXP:FetchFriend(friend)
+ for i, v in ipairs(activeFriends) do
+  if (activeFriends[i]["name"] == friend) then
+   self:Debug("UpdateFriendXP_HELPER matched: " .. friend)
+   local ft = activeFriends[i]
+   return ft
+  end
+ end
+ return nil
 end
 
 function FriendXP:UpdateFriendXP_HELPER(friend)
+ 	--[[
  for i,v in ipairs(activeFriends) do
   if (activeFriends[i]["name"] == friend) then
    self:Debug("UpdateFriendXP_HELPER matched: " .. friend)
@@ -938,18 +964,19 @@ function FriendXP:UpdateFriendXP_HELPER(friend)
    self:UpdateFriendXP(ft)
    return
   end
- end
+ end ]]--
+ self:UpdateFriendXP(self:FetchFriend(friend))
 end
 
 function FriendXP:UpdateFriendXP(ft) -- Friendbar
  -- Need to modify function to only need friend name/index to show friend
  -- May also need to work on the activeFriends table to make that easier
  -- like -- function FriendXP:UpdateFriendXP(id)
- if (self.db.profile.friendbar.enabled == false) then
+ if (self.db.profile.friendbar.enabled and self.db.profile.enabled) then
+  xpbar:Show()
+ else
   xpbar:Hide()
   return
- else
-  xpbar:Show()
  end
 
  if (activeFriend ~= "" and activeFriend ~= ft["name"]) then
@@ -1208,6 +1235,12 @@ function FriendXP:RemoveOutdated()
   if (friend["lastTime"] < GetTime() - self.db.profile.miniframe.threshold) then
    self:Debug("Removing and recycling outdated friend " .. friend["name"])
    self:RemoveFromActive(friend["name"])
+   for i = 1, 4 do -- FIXME
+    if (friend["name"] == UnitName("party" .. i) or GetPartyMember(i)) then
+     self:Debug("Clearing info for party" .. i)
+     self.party["party" .. i] = nil
+    end
+   end
    self:RecycleFrame(friend["name"])
    if (friend["name"] == activeFriend) then
     activeFriend = "";
@@ -1267,6 +1300,7 @@ function FriendXP:OnInitialize()
    version = 1.01,
    debug = false,
    checkOnline = true,
+   integrateParty = false,
    sendAll = true,
    partyAll = true,
    bgAll = false,
@@ -1442,6 +1476,8 @@ function FriendXP:OnInitialize()
  self:SetupMiniframe()
 
  self:SetEnabledState(self.db.profile.enabled)
+
+ self.party = { }
 end
 
 function FriendXP:CreateFonts()
@@ -1670,7 +1706,7 @@ function FriendXP:SendXP()
   ["xp"] = xp,
   ["totalxp"] = xptotal,
   ["level"] = level,
-  ["restbonus"] = tonumber(restbonus),
+  ["restbonus"] = restbonus,
   ["xpdisabled"] = xpdisabled,
   ["class"] = class,
   ["lastTime"] = GetTime(),
@@ -1801,7 +1837,7 @@ function FriendXP:OnCommReceived(a,b,c,d)
  local restbonus = string.sub(b, mid4 + 1, mid5 - 1)
  local xpdisabled = string.sub(b, mid5 + 1, mid6 - 1)
  local class = string.sub(b, mid6 + 1, -1)
- self:Debug("Class " .. class)
+ self:Debug(name .. " " .. xp .. " " .. xptotal .. " " .. level .. " " .. restbonus .. " " .. class)
 
  if (UnitName("player") == name) then -- Don't show stuff we sent, mainly for PARTY and GUILD
   self:Debug("Returning from OnComm because name == player")
@@ -1869,10 +1905,36 @@ function FriendXP:OnCommReceived(a,b,c,d)
   end
  end
 
+ -- NEW
+ newFriends[name] = {
+  xp = tonumber(xp),
+  totalxp = tonumber(xptotal),
+  level = tonumber(level),
+  restbonus = tonumber(restbonus),
+  xpdisabled = tonumber(xpdisabled),
+  class = class,
+  lastime = GetTime(),
+ }
+ -- NEW
+
+ for i = 1, 4 do
+  if (name == UnitName("party"..i)) then
+   self.party["party" .. i] = self:Round((friendTable["xp"]/friendTable["totalxp"])*100)
+  end
+ end
+
  self:UpdateMiniframe();
+ self:UpdatePartyMembers();
 end
 
 function FriendXP:RemoveFromActive(friend)
+ -- NEW
+ if (newFriends[friend]) then
+  self:Debug("Removing " .. friend .. " from newFriends table")
+  newFriends[friend] = nil
+ end
+  
+ -- END
  for i,v in ipairs(activeFriends) do
   if (activeFriends[i]["name"] == friend) then
    table.remove(activeFriends,i)
@@ -2076,5 +2138,69 @@ function FriendXP:DragStop(frame, button, name)
  -- self:Print(frame:GetRight(), frame:GetTop())
   frame:StopMovingOrSizing()
 
+ end
+end
+
+local partyXPFrames = { }
+FriendXP.tmp = partyXPFrames
+function FriendXP:UpdatePartyMembers()
+ for i = 1, 4 do -- Hide all frames
+  if (partyXPFrames[i]) then partyXPFrames[i].frame:Hide(); partyXPFrames[i].xpbar:Hide() end
+ end
+ if (not self.db.profile.integrateParty) then return end
+ for i = 1, 4 do
+  local name = UnitName("party"..i)
+  if (not name) then return end
+
+  local ft = self:FetchFriend(name)
+  if (ft == nil) then return end
+  if (not partyXPFrames[i]) then
+   local f = CreateFrame("Frame", nil, _G["PartyMemberFrame" .. i])
+   f:SetBackdrop({bgFile = LSM:Fetch("background", "PartyXPBar"), tile = false, tileSize = 0, insets = { left = 0, right = 0, top = 0, bottom = 0 }})
+   f:ClearAllPoints()
+   f:SetHeight(32)
+   f:SetWidth(128)
+   f:SetPoint("TOPLEFT", _G["PartyMemberFrame" .. i], "TOPLEFT", 42, -30)
+
+   local sbg = CreateFrame("Frame", nil, _G["PartyMemberFrame" .. i])
+   sbg:SetBackdrop({bgFile = LSM:Fetch("background", "Solid")})
+   sbg:SetBackdropColor(0,0,0,1)
+   sbg:SetPoint("TOPLEFT", _G["PartyMemberFrame" .. 1], "TOPLEFT", 46, -31)
+   sbg:SetWidth(066)
+   sbg:SetHeight(4)
+
+   local s = CreateFrame("StatusBar", nil, sbg)
+   s:SetAllPoints(sbg)
+   
+   --s:SetFrameLevel(f:GetFrameLevel()-1)
+   
+   s:SetStatusBarTexture(LSM:Fetch("statusbar", "Blizzard"))
+   s:SetStatusBarColor(1,0,1)
+   s:SetMinMaxValues(0, 1000)
+   s:SetValue(0)
+
+   local t = s:CreateFontString(nil, 'OVERLAY')
+   t:SetFont(LSM:Fetch("font", "Friz Quadrata TT"), 10)
+   t:SetAllPoints(s)
+
+   
+   partyXPFrames[i] = { frame = f, xpbar = s, text = t }
+   --xpbar.rest = CreateFrame('StatusBar', nil, xpbar)
+
+-- xpbar:SetFrameStrata(self.db.profile.friendbar.framestrata)
+-- xpbar:SetFrameLevel(self.db.profile.friendbar.framelevel)
+
+ --xpbar.rest:SetAllPoints(xpbar)
+
+ --xpbar.text = xpbar.xp:CreateFontString(nil, 'OVERLAY')
+ --xpbar.text:SetFont(LSM:Fetch("font", self.db.profile.friendbar.text.font), self.db.profile.friendbar.text.size, self.db.profile.friendbar.text.style)
+ --xpbar.text:SetPoint("CENTER")
+  end
+  partyXPFrames[i].xpbar:SetMinMaxValues(0, ft["totalxp"])
+  partyXPFrames[i].xpbar:SetValue(ft["xp"])
+  partyXPFrames[i].text:SetText(self:Round((ft["xp"]/ft["totalxp"])*100) .. "%")
+
+  partyXPFrames[i].frame:Show()
+  partyXPFrames[i].xpbar:Show()
  end
 end
