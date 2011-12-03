@@ -1,4 +1,4 @@
-FriendXP = LibStub("AceAddon-3.0"):NewAddon("FriendXP", "AceBucket-3.0", "AceConsole-3.0", "AceEvent-3.0","AceComm-3.0","AceTimer-3.0")
+FriendXP = LibStub("AceAddon-3.0"):NewAddon("FriendXP", "AceBucket-3.0", "AceConsole-3.0", "AceEvent-3.0","AceComm-3.0", "AceSerializer-3.0", "AceTimer-3.0")
 
 local L = LibStub("AceLocale-3.0"):GetLocale("FriendXP")
 local LSM = LibStub("LibSharedMedia-3.0")
@@ -10,8 +10,7 @@ LSM:Register("background", "Wireless Icon2", "Interface\\Addons\\FriendXP\\Artwo
 LSM:Register("background", "Wireless Incoming", "Interface\\Addons\\FriendXP\\Artwork\\wlan_incoming.tga")
 LSM:Register("background", "PartyXPBar", "Interface\\Addons\\FriendXP\\Artwork\\partyxpbar.tga")
 
-local activeFriends = { };
-local newFriends = { };
+local newFriends = { }; -- Needs renaming
 local fonts = { };
 
 local Miniframes = { };
@@ -27,7 +26,7 @@ local activeFriend = "";
 local gsub = string.gsub
 
 
-local launcher = LibStub:GetLibrary("LibDataBroker-1.1"):NewDataObject("FriendXP", {
+FriendXP.LDB = LibStub:GetLibrary("LibDataBroker-1.1"):NewDataObject("FriendXP", {
  type = "launcher",
  label = "FriendXP",
  icon = "Interface\\ICONS\\Achievement_DoubleRainbow.blp",
@@ -44,9 +43,11 @@ local launcher = LibStub:GetLibrary("LibDataBroker-1.1"):NewDataObject("FriendXP
  end,
 })
 
+-- Need to rework the options menu
 local function giveOptions(self)
  local maxwidth = self:Round(UIParent:GetWidth(),0);
  local maxheight = self:Round(UIParent:GetHeight(),0);
+ local db = self.db.profile -- To shorten some of the variables
  local options = {
  name = "FriendXP",
  type = "group",
@@ -80,7 +81,7 @@ local function giveOptions(self)
    set = function(info, value) self.db.profile.checkOnline = value end,
   },
   doLevelUp = {
-   name = "LevelUp Message",
+   name = "Level Up Message",
    desc = "Show a UIErrors message when a player levels up",
    order = 4,
    type = "toggle",
@@ -92,7 +93,7 @@ local function giveOptions(self)
    desc = "Only works with default blizzard party frames",
    type = "toggle",
    get = function(i) return self.db.profile.integrateParty end,
-   set = function(i, v) self.db.profile.integrateParty = v; self:UpdatePartyMembers() end,
+   set = function(i, v) self.db.profile.integrateParty = v; self:HookBlizzPartyFrames() end,
   },
   replyAll = {
    name = L["Send to all friends"],
@@ -599,6 +600,13 @@ local function giveOptions(self)
      get = function(i) return self.db.profile.miniframe.rest.enabled end,
      set = function(i, v) self.db.profile.miniframe.rest.enabled = v; self:UpdateMiniframe() end
     },
+    xpbarrestcustom = {
+     name = "Use custome XP Bar Restbonus Color",
+     order = 5.71,
+     type = "toggle",
+     get = function(i) return self.db.profile.miniframe.rest.custom end,
+     set = function(i, v) self.db.profile.miniframe.rest.custom = v; self:UpdateMiniframe() end
+    },
     xpbarrestcolor = {
      name = "XP Bar Restbonus Color",
      order = 5.8,
@@ -943,28 +951,14 @@ function FriendXP:UpdateSettings()
  end
 end
 
--- Returns friend table, really need to redo the activeFriends table to avoid all this looping
+-- Returns friend table, really need to redo the activeFriends table to avoid all this looping (DONE)
 function FriendXP:FetchFriend(friend)
- for i, v in ipairs(activeFriends) do
-  if (activeFriends[i]["name"] == friend) then
-   self:Debug("UpdateFriendXP_HELPER matched: " .. friend)
-   local ft = activeFriends[i]
-   return ft
-  end
+ if (newFriends[friend]) then
+  return newFriends[friend]
  end
- return nil
 end
 
 function FriendXP:UpdateFriendXP_HELPER(friend)
- 	--[[
- for i,v in ipairs(activeFriends) do
-  if (activeFriends[i]["name"] == friend) then
-   self:Debug("UpdateFriendXP_HELPER matched: " .. friend)
-   local ft = activeFriends[i]
-   self:UpdateFriendXP(ft)
-   return
-  end
- end ]]--
  self:UpdateFriendXP(self:FetchFriend(friend))
 end
 
@@ -978,6 +972,8 @@ function FriendXP:UpdateFriendXP(ft) -- Friendbar
   xpbar:Hide()
   return
  end
+
+ if (ft == nil) then return end
 
  if (activeFriend ~= "" and activeFriend ~= ft["name"]) then
   self:Debug("Returning because activeFriend " .. activeFriend .. " is not selected " .. ft["name"])
@@ -1110,98 +1106,44 @@ function FriendXP:SetupMiniframe()
 
 end
 
+local miniframes = { } -- Holds frame refs
 function FriendXP:UpdateMiniframe()
- if (Miniframe == nil) then
-  return
- end
+ if (Miniframe == nil) then self:Debug("MINIFRAME UNDEFINED") return end
 
  if (self.db.profile.miniframe.enabled and self.db.profile.enabled) then
   Miniframe:Show()
  else
   Miniframe:Hide()
-  return
  end
 
- self:RemoveOutdated()
- local x = 0
- local b = 0
- local y = 0;
+ local b = 0 -- Column Counter
+ local x = 0 -- Counter for frame position in column goes 1 to columnlimit, then increments b and resets to 0
+ local y = 0 -- A counter for each frame
 
- for i,v in ipairs(activeFriends) do
-  if (y >= self.db.profile.miniframe.friendlimit) then
-   self:Debug("Hit Friend Limit")
-   return
-  end
-  local ft = activeFriends[i]
-  local class = strupper(ft["class"]);
-  if (class == nil) then
-   class = "MAGE";
-  end
-  --["name"],ft["level"],ft["xp"] .. "/" .. ft["totalxp"],ft["restbonus"],)
-  local frame = self:GetCreateXPBar(ft["name"]);
-  frame:ClearAllPoints()
-  frame:SetPoint("TOPLEFT", Miniframe, "TOPLEFT", self.db.profile.miniframe.xp.offsetx + ((self.db.profile.miniframe.xp.width) * b) + (4*b) + (self.db.profile.miniframe.xp.height * (b+1)), (-(self.db.profile.miniframe.xp.height+2) * x)-self.db.profile.miniframe.xp.offsety - 2)
-  frame:SetWidth(self.db.profile.miniframe.xp.width);
-  frame:SetHeight(self.db.profile.miniframe.xp.height);
-  frame.xp:SetMinMaxValues(0, ft["totalxp"])
-  frame:SetMinMaxValues(0, ft["totalxp"])
+ local player = UnitName("player")
 
-  if (ft["level"] == 85) then
-   frame.xp:SetValue(ft["totalxp"])
-  else
-   frame.xp:SetValue(ft["xp"])
-  end
-  if (self.db.profile.miniframe.rest.enabled) then
-      if (ft["restbonus"] + ft["xp"] > ft["totalxp"]) then
-    frame:SetValue(ft["totalxp"])
+ self:RemoveOutdated_NEW()
+ --self:RecycleAllFrames()
+
+ if (newFriends[player] ~= nil) then -- Ensure that the player is always the first
+  self:CreateMinibar(newFriends[player], b, y, x)
+ else
+  self:Debug("PLAYER DATA WAS NIL")
+ end
+
+ for key, value in pairs(newFriends) do
+  local ft = newFriends[key]
+  if (ft["name"] ~= player) then -- Ignore player
+   y = y + 1; -- Replacement for x's original function
+   if (x >= self.db.profile.miniframe.columnlimit - 1) then
+    x = 0;
+    b = b + 1;
    else
-    frame:SetValue(ft["restbonus"] + ft["xp"])
+    x = x + 1;
    end
-  else
-   frame:SetValue(0)
+   self:CreateMinibar(ft, b, y, x)
   end
-  frame:SetStatusBarTexture(LSM:Fetch("statusbar", self.db.profile.miniframe.xp.texture))
-  --frame:SetStatusBarColor(self.db.profile.miniframe.rest.color.r, self.db.profile.miniframe.rest.color.g, self.db.profile.miniframe.rest.color.b)
-  frame:SetStatusBarColor(RAID_CLASS_COLORS[class]["r"] - 0.2, RAID_CLASS_COLORS[class]["g"] - 0.2, RAID_CLASS_COLORS[class]["b"] - 0.2)
-  frame:Show()
-  frame.xp:ClearAllPoints()
-  frame.xp:SetAllPoints(frame)
-  frame.xp:SetStatusBarTexture(LSM:Fetch("statusbar", self.db.profile.miniframe.xp.texture))
-  frame.xp:SetStatusBarColor(RAID_CLASS_COLORS[class]["r"], RAID_CLASS_COLORS[class]["g"], RAID_CLASS_COLORS[class]["b"])
-  frame.bg:ClearAllPoints()
-  frame.bg:SetAllPoints(frame)
-  frame.bg:SetTexture(LSM:Fetch("statusbar", self.db.profile.miniframe.xp.texture))
-  frame.bg:SetVertexColor(self.db.profile.miniframe.xp.bgcolor.r, self.db.profile.miniframe.xp.bgcolor.g, self.db.profile.miniframe.xp.bgcolor.b, self.db.profile.miniframe.xp.bgcolor.a)
-  frame.text:SetFont(LSM:Fetch("font", self.db.profile.miniframe.xp.text.font), self.db.profile.miniframe.xp.text.size, self.db.profile.miniframe.xp.text.style)
-  frame.text:SetTextColor(self.db.profile.miniframe.xp.text.color.r, self.db.profile.miniframe.xp.text.color.g, self.db.profile.miniframe.xp.text.color.b, self.db.profile.miniframe.xp.text.color.a);
-  local pname = ft["name"];
-  if (self.db.profile.miniframe.xp.namelen > 0) then
-   pname = strsub(ft["name"], 0, self.db.profile.miniframe.xp.namelen)
-  end
-  frame.text:SetPoint("LEFT")
-  frame.text:SetText(self:FormatString(self.db.profile.miniframe.formatstring, ft))
-  --frame.text:SetFormattedText("%d:%s", ft["level"], pname)
-
-  -- Tooltip
-  frame:SetScript("OnEnter", function() self:MiniTooltip(frame, true, ft) end)
-  frame:SetScript("OnLeave", function() self:MiniTooltip(frame, false) end)
-
-  -- Configure the button
-  local buttonBg = "Interface/BUTTONS/UI-CheckBox-Check-Disabled.blp";
-  local buttonNoXP = "";
-  if (activeFriend == ft["name"]) then
-   buttonBg = "Interface/BUTTONS/UI-CheckBox-Check.blp";
-  end
-  if (ft["xpdisabled"] == 1) then
-   buttonNoXP = "Interface/BUTTONS/UI-GroupLoot-Pass-Up.blp";
-  end
-  frame.button:SetScript("OnMouseDown", function() self:Debug("Setting activeFriend to " .. ft["name"]); if (activeFriend ~= ft["name"]) then activeFriend = ft["name"]; self:UpdateFriendXP_HELPER(activeFriend); else activeFriend = ""; end; self:UpdateMiniframe(); end)
-  frame.buttonbg:SetPoint("LEFT", frame, "LEFT", -self.db.profile.miniframe.xp.height, 0);
-  frame.buttonbg:SetHeight(self.db.profile.miniframe.xp.height);
-  frame.buttonbg:SetWidth(self.db.profile.miniframe.xp.height);
-  frame.buttonbg:SetBackdrop({bgFile = buttonNoXP, tile = false, tileSize = 0, edgeSize = 0, insets = { left = 0, right = 0, top = 0, bottom = 0}})
-  frame.button:SetBackdrop({bgFile = buttonBg, tile = false, tileSize = 0, edgeSize = self.db.profile.miniframe.border.bordersize, insets = { left = 0, right = 0, top = 0, bottom = 0 }})
-
+ end
 
   -- Needs more work
   if (b == 0) then
@@ -1218,51 +1160,123 @@ function FriendXP:UpdateMiniframe()
    Miniframe:SetWidth((self.db.profile.miniframe.xp.height*(b+1)) + (self.db.profile.miniframe.xp.width * (b + 1)) + (self.db.profile.miniframe.xp.offsetx * 2) + (4 * b))
    --Miniframe:Show()
   end
+end
 
-  y = y + 1; -- Replacement for x's original function
-  if (x >= self.db.profile.miniframe.columnlimit - 1) then
-   x = 0;
-   b = b + 1;
+function FriendXP:CreateMinibar(ft, b, y, x) -- This whole function needs work
+ if (ft == nil) then return end -- FIXME
+
+ local db = self.db.profile.miniframe -- Shorten some repetitive stuff
+
+ local class = strupper(ft["class"]);
+ if (class == nil) then
+  class = "MAGE";
+ end
+ --["name"],ft["level"],ft["xp"] .. "/" .. ft["totalxp"],ft["restbonus"],)
+ local frame = self:GetFrame(ft["name"]);
+ frame:SetPoint("TOPLEFT", Miniframe, "TOPLEFT", db.xp.offsetx + ((db.xp.width) * b) + (4*b) + (db.xp.height * (b+1)), (-(db.xp.height+2) * x)-db.xp.offsety - 2)
+ frame:SetWidth(db.xp.width);
+ frame:SetHeight(db.xp.height);
+ frame:SetMinMaxValues(0, ft["totalxp"])
+ --frame.xp:ClearAllPoints()
+ --frame.xp:SetAllPoints(true)
+ frame.xp:SetMinMaxValues(0, ft["totalxp"])
+ 
+
+ if (ft["level"] == ft["maxlevel"]) then
+  frame.xp:SetValue(ft["totalxp"])
+ else
+  frame.xp:SetValue(ft["xp"])
+ end
+ if (db.rest.enabled) then
+     if (ft["restbonus"] + ft["xp"] > ft["totalxp"]) then
+   frame:SetValue(ft["totalxp"])
   else
-   x = x + 1;
+   frame:SetValue(ft["restbonus"] + ft["xp"])
+  end
+ else
+  frame:SetValue(0)
+ end
+ frame:SetStatusBarTexture(LSM:Fetch("statusbar", db.xp.texture))
+  --frame:SetStatusBarColor(self.db.profile.miniframe.rest.color.r, self.db.profile.miniframe.rest.color.g, self.db.profile.miniframe.rest.color.b)
+ if (db.rest.custom) then
+  frame:SetStatusBarColor(db.rest.color.r, db.rest.color.g, db.rest.color.b)
+ else
+  frame:SetStatusBarColor(RAID_CLASS_COLORS[class]["r"] - 0.2, RAID_CLASS_COLORS[class]["g"] - 0.2, RAID_CLASS_COLORS[class]["b"] - 0.2)
+ end
+ frame:Show()
+ 
+ frame.xp:SetStatusBarTexture(LSM:Fetch("statusbar", db.xp.texture))
+ frame.xp:SetStatusBarColor(RAID_CLASS_COLORS[class]["r"], RAID_CLASS_COLORS[class]["g"], RAID_CLASS_COLORS[class]["b"])
+ frame.bg:ClearAllPoints()
+ frame.bg:SetAllPoints(true)
+ frame.bg:SetTexture(LSM:Fetch("statusbar", db.xp.texture))
+ frame.bg:SetVertexColor(db.xp.bgcolor.r, db.xp.bgcolor.g, db.xp.bgcolor.b, db.xp.bgcolor.a)
+ frame.text:SetFont(LSM:Fetch("font", db.xp.text.font), db.xp.text.size, db.xp.text.style)
+ frame.text:SetTextColor(db.xp.text.color.r, db.xp.text.color.g, db.xp.text.color.b, db.xp.text.color.a);
+ local pname = ft["name"];
+ if (db.xp.namelen > 0) then
+  pname = strsub(ft["name"], 0, db.xp.namelen)
+ end
+ frame.text:SetPoint("LEFT")
+ frame.text:SetText(self:FormatString(db.formatstring, ft))
+  --frame.text:SetFormattedText("%d:%s", ft["level"], pname)
+
+ -- Tooltip
+ frame:SetScript("OnEnter", function() self:MiniTooltip(frame, true, ft) end)
+ frame:SetScript("OnLeave", function() self:MiniTooltip(frame, false) end)
+
+ -- Configure the button
+ local buttonBg = "Interface/BUTTONS/UI-CheckBox-Check-Disabled.blp";
+ local buttonNoXP = "";
+ if (activeFriend == ft["name"]) then
+  buttonBg = "Interface/BUTTONS/UI-CheckBox-Check.blp";
+ end
+ if (ft["xpdisabled"] == 1) then
+  buttonNoXP = "Interface/BUTTONS/UI-GroupLoot-Pass-Up.blp";
+ end
+ frame.button:SetScript("OnMouseDown", function() self:Debug("Setting activeFriend to " .. ft["name"]); if (activeFriend ~= ft["name"]) then activeFriend = ft["name"]; self:UpdateFriendXP_HELPER(activeFriend); else activeFriend = ""; end; self:UpdateMiniframe(); end)
+ frame.buttonbg:SetPoint("LEFT", frame, "LEFT", -db.xp.height, 0);
+ frame.buttonbg:SetHeight(db.xp.height);
+ frame.buttonbg:SetWidth(db.xp.height);
+ frame.buttonbg:SetBackdrop({bgFile = buttonNoXP, tile = false, tileSize = 0, edgeSize = 0, insets = { left = 0, right = 0, top = 0, bottom = 0}})
+ frame.button:SetBackdrop({bgFile = buttonBg, tile = false, tileSize = 0, edgeSize = db.border.bordersize, insets = { left = 0, right = 0, top = 0, bottom = 0 }})
+end
+
+function FriendXP:RemoveOutdated_NEW()
+ for key, value in pairs(newFriends) do
+  if (key ~= UnitName("player")) then
+   if (newFriends[key]["lastTime"] < GetTime() - self.db.profile.miniframe.threshold) then
+    self:RemoveFromActive(key)
+    self:RecycleFrame(key)
+   end
   end
  end
 end
 
+--[[
 function FriendXP:RemoveOutdated()
- for i,v in ipairs(activeFriends) do
-  local friend = activeFriends[i];
-  if (friend["lastTime"] < GetTime() - self.db.profile.miniframe.threshold) then
-   self:Debug("Removing and recycling outdated friend " .. friend["name"])
-   self:RemoveFromActive(friend["name"])
-   for i = 1, 4 do -- FIXME
-    if (friend["name"] == UnitName("party" .. i) or GetPartyMember(i)) then
-     self:Debug("Clearing info for party" .. i)
-     self.party["party" .. i] = nil
-    end
-   end
-   self:RecycleFrame(friend["name"])
-   if (friend["name"] == activeFriend) then
-    activeFriend = "";
-   end
+ for key, value in pairs(newFriends) do
+  if (value["lastTime"] < GetTime() - self.db.profile.miniframe.threshold) then
+   self:RemoveFromActive(value["name"])
   end
  end
 end
+]]--
 
-function FriendXP:GetCreateXPBar(name)
- if (Miniframes[name] ~= nil) then
-  self:Debug("Updating " .. name)
-  return Miniframes[name]
+function FriendXP:GetCreateXPBar(key)
+ if (miniframes[key] ~= nil) then
+  self:Debug("Updating " .. key)
+  return miniframes[key]
  else
   -- Fetch a frame
   local frame = next(frameCache)
   if frame then
-    self:Debug("Recycling " .. name);
+    self:Debug("Recycling " .. key);
     frameCache[frame] = nil;
-    Miniframes[name] = frame;
-    return Miniframes[name] 
+    miniframes[key] = frame;
+    return miniframes[key] 
   else
-   self:Debug("Creating " .. name);
+   self:Debug("Creating " .. key);
    frame = CreateFrame("StatusBar", nil, Miniframe)
    frame.xp = CreateFrame("StatusBar", nil, frame)
    frame.bg = frame:CreateTexture(nil, 'BACKGROUND')
@@ -1272,21 +1286,59 @@ function FriendXP:GetCreateXPBar(name)
    frame.button:RegisterForClicks("AnyDown")
    frame.button:ClearAllPoints()
    frame.button:SetAllPoints(frame.buttonbg)
-   Miniframes[name] = frame;
-   return Miniframes[name]
+   miniframes[key] = frame;
+   return miniframes[key]
   end
+ end
+end
+
+function FriendXP:GetFrame(name) -- Player name is new frame ref thingy
+ if (miniframes[name] ~= nil) then
+  self:Debug("Updating" .. name)
+  return miniframes[name]
+ end
+ local frame = next(frameCache)
+ if frame then
+  self:Debug("Recycling " .. name);
+  frameCache[frame] = nil;
+  miniframes[name] = frame
+  return frame
+ else
+  self:Debug("Creating " .. name);
+  frame = CreateFrame("StatusBar", nil, Miniframe)
+  frame.id = y
+  frame.xp = CreateFrame("StatusBar", nil, frame)
+  frame.xp:SetAllPoints(true)
+  frame.bg = frame:CreateTexture(nil, 'BACKGROUND')
+  frame.text = frame.xp:CreateFontString(nil, 'OVERLAY')
+  frame.buttonbg = CreateFrame("Frame", nil, frame)
+  frame.button = CreateFrame("Button", nil, frame.buttonbg)
+  frame.button:RegisterForClicks("AnyDown")
+  frame.button:ClearAllPoints()
+  frame.button:SetAllPoints(true)
+  miniframes[name] = frame;
+  return frame
  end
 end
 
 -- Need to first RemoveFromActive("friend")
 -- then RecycleFrame to hide their miniframe if it exists
-function FriendXP:RecycleFrame(friend)
- if (Miniframes[friend] ~= nil) then
-  self:Debug("Recycling Frame " .. friend);
-  Miniframes[friend]:Hide()
-  Miniframes[friend]:ClearAllPoints()
-  frameCache[Miniframes[friend]] = true
-  Miniframes[friend] = nil;
+function FriendXP:RecycleFrame(name) -- Key is Y
+ if (miniframes[name] ~= nil) then
+  self:Debug("Recycling Frame " .. name);
+  miniframes[name]:Hide()
+  miniframes[name]:ClearAllPoints()
+  frameCache[miniframes[name]] = true
+  miniframes[name] = nil;
+ end
+end
+
+function FriendXP:RecycleAllFrames()
+ for key, value in pairs(miniframes) do
+  if (miniframes[key] ~= nil) then
+   self:Debug("RecycleAllFrames recycling " .. key)
+   self:RecycleFrame(key)
+  end
  end
 end
 
@@ -1312,7 +1364,7 @@ function FriendXP:OnInitialize()
     enabled = true,
     framelevel = 1,
     framestrata = "MEDIUM",
-    x = maxwidth/2 - (maxwidth*0.50)/2,
+    x = maxwidth/2 - (maxwidth*0.75)/2,
     y = -20,
     formatstring = "%n (%l): %xp / %txp (%p%) Remaining: %rm%rs Rested: %r%re %d",
     height = 16,
@@ -1349,6 +1401,7 @@ function FriendXP:OnInitialize()
    miniframe = {
     rest = {
      enabled = true,
+     custom = false,
      color = {
       r = 0,
       g = 0,
@@ -1474,10 +1527,9 @@ function FriendXP:OnInitialize()
  self.fonts = { }
  self:CreateFonts()
  self:SetupMiniframe()
+ self:HookBlizzPartyFrames()
 
  self:SetEnabledState(self.db.profile.enabled)
-
- self.party = { }
 end
 
 function FriendXP:CreateFonts()
@@ -1583,6 +1635,7 @@ function FriendXP:OnDisable()
  Miniframe:Hide()
 end
 
+-- Does this have a use anymore?
 function FriendXP:ToggleFriendbar()
  if (self.db.profile.friendbar.enabled == true and self.db.profile.enabled) then
   xpbar:Show()
@@ -1636,49 +1689,9 @@ function FriendXP:HandleIt(input)
   return
  end
 
- if (command == "af") then
-  local friend = self:GetArgs(input,1,nextposition)
-  if (friend == nil) then
-   return
-  end
- friendTable = {
-   ["name"] = friend,
-   ["xp"] = 900,
-   ["totalxp"] = 1000,
-   ["level"] = 85,
-   ["restbonus"] = 0,
-   ["xpdisabled"] = 0,
-   ["class"] = "PALADIN",
-   ["lastTime"] = GetTime(),
-  }
-  local index = self:RemoveFromActive(friend);
-  if (index ~= -1) then
-   tinsert(activeFriends, index, friendTable)
-  else
-   tinsert(activeFriends, friendTable)
-  end
-
-  self:UpdateMiniframe();
-  return
- end
-
- if (command == "df") then
-  local friend = self:GetArgs(input,1,nextposition)
-  if (friend == nil) then
-   return
-  end
-  
-  self:RemoveFromActive(friend);
-  self:UpdateMiniframe();
-  self:RecycleFrame(friend);
-  return
- end
- 
  InterfaceOptionsFrame_OpenToCategory(self.configFrame)
- self:UpdateSettings();
 end
 
-local friendTable = { } -- Move outside of function to avoid creating and garbagecollecting, don't think it matters though
 function FriendXP:SendXP()
  if (self.db.profile.miniframe.enabled and self.db.profile.miniframe.outgoing.enabled) then
   Miniframe.flash:Show()
@@ -1700,38 +1713,39 @@ function FriendXP:SendXP()
  local xptotal = UnitXPMax("player");
  local level = UnitLevel("player");
  local _, class = UnitClass("player");
-
- friendTable = {
-  ["name"] = player,
-  ["xp"] = xp,
-  ["totalxp"] = xptotal,
-  ["level"] = level,
-  ["restbonus"] = restbonus,
-  ["xpdisabled"] = xpdisabled,
-  ["class"] = class,
-  ["lastTime"] = GetTime(),
+ local maxlevel = MAX_PLAYER_LEVEL_TABLE[GetAccountExpansionLevel()]
+ newFriends[player] = {
+  name = player,
+  xp = xp,
+  totalxp = xptotal,
+  level = level,
+  restbonus = restbonus,
+  xpdisabled = xpdisabled,
+  class = class,
+  lastTime = GetTime(),
+  maxlevel = maxlevel,
  }
 
- self:RemoveFromActive(player);
- tinsert(activeFriends, 1, friendTable); -- Adds the player to the tooltip table aswell, hopefully at the top
  self:UpdateMiniframe()
 
  if (activeFriend == player) then -- If the player is selected to be shown on the friendbar, then do update
   self:UpdateFriendXP_HELPER(player)
  end
 
+ local msg = self:Serialize(player, xp, xptotal, level, restbonus, xpdisabled, class, maxlevel)
+
  if (self.db.profile.guildAll == true and IsInGuild()) then -- Send to entire guild
-  self:SendCommMessage("friendxp", player .. ":" .. xp .. ":" .. xptotal .. ":" .. level .. ":" .. restbonus .. ":" .. xpdisabled .. ":" .. class, "GUILD", friend)
+  self:SendCommMessage("friendxp", msg, "GUILD", friend)
  end
 
  if (self.db.profile.bgAll and UnitInBattleground("player")) then -- Send to battleground (not yet implemented)
   self:Debug("Sending to Battleground")
-  self:SendCommMessage("friendxp", player .. ":" .. xp .. ":" .. xptotal .. ":" .. level .. ":" .. restbonus .. ":" .. xpdisabled .. ":" .. class, "BATTLEGROUND", friend)
+  self:SendCommMessage("friendxp", msg, "BATTLEGROUND", friend)
  end
 
  if (self.db.profile.partyAll and UnitInBattleground("player") == nil) then -- Send to party
   self:Debug("Sending to party")
-  self:SendCommMessage("friendxp", player .. ":" .. xp .. ":" .. xptotal .. ":" .. level .. ":" .. restbonus .. ":" .. xpdisabled .. ":" .. class, "RAID", friend)
+  self:SendCommMessage("friendxp", msg, "RAID", friend)
  end
 
  if (self.db.profile.sendAll == true) then -- Send to all friends
@@ -1740,7 +1754,7 @@ function FriendXP:SendXP()
    for friendL = 1, numberOfFriends do
     local nameT, levelT, classT, areaT, connectedT, statusT, noteT = GetFriendInfo(friendL)
     if (nameT ~= nil and connectedT ~= nil) then
-     self:SendCommMessage("friendxp", player .. ":" .. xp .. ":" .. xptotal .. ":" .. level .. ":" .. restbonus .. ":" .. xpdisabled .. ":" .. class, "WHISPER", nameT)
+     self:SendCommMessage("friendxp", msg, "WHISPER", nameT)
     end
    end
   end
@@ -1766,7 +1780,7 @@ function FriendXP:SendXP()
       self:Debug("Sent")
       local _, _, _, realmName, _, _, _, _, _, _, _ = BNGetToonInfo(toonID)
       if (realmName == GetRealmName()) then
-       self:SendCommMessage("friendxp", player .. ":" .. xp .. ":" .. xptotal .. ":" .. level .. ":" .. restbonus .. ":" .. xpdisabled .. ":" .. class, "WHISPER", toonName)
+       self:SendCommMessage("friendxp", msg, "WHISPER", toonName)
    --[[   else -- Doesn't Work
        self:Debug("Attempting to send cross realm")
        local crossServer = toonName .. "-" .. realmName
@@ -1791,7 +1805,7 @@ function FriendXP:SendXP()
  for i, v in ipairs(self.db.profile.friends) do -- Loop through all friends
   local realm, friend = self:FriendKey("splode",v)
   if ((self.db.profile.checkOnline == true and self:FriendCheck(realm,friend)) or self.db.profile.checkOnline == false) then -- Whisper it to friend if online
-   self:SendCommMessage("friendxp", player .. ":" .. xp .. ":" .. xptotal .. ":" .. level .. ":" .. restbonus .. ":" .. xpdisabled .. ":" .. class, "WHISPER", friend)
+   self:SendCommMessage("friendxp", msg, "WHISPER", friend)
   end
  end
 end
@@ -1821,6 +1835,7 @@ function FriendXP:OnCommReceived(a,b,c,d)
 
 -- the format should be-> playername:xp:xptotal:level:restbonus:xpdisabled:class
 
+--[[
  local mid = string.find(b, ":", 1, true)
  if (mid == nil) then
   return
@@ -1830,6 +1845,8 @@ function FriendXP:OnCommReceived(a,b,c,d)
  local mid4 = string.find(b, ":", mid3 + 1, true)
  local mid5 = string.find(b, ":", mid4 + 1, true)
  local mid6 = string.find(b, ":", mid5 + 1, true)
+ local mid7 = string.find(b, ":", mid6 + 1, true)
+
  local name = string.sub(b,  1, mid - 1)
  local xp = string.sub(b, mid + 1, mid2 - 1)
  local xptotal = string.sub(b, mid2 + 1, mid3 - 1)
@@ -1837,7 +1854,19 @@ function FriendXP:OnCommReceived(a,b,c,d)
  local restbonus = string.sub(b, mid4 + 1, mid5 - 1)
  local xpdisabled = string.sub(b, mid5 + 1, mid6 - 1)
  local class = string.sub(b, mid6 + 1, -1)
- self:Debug(name .. " " .. xp .. " " .. xptotal .. " " .. level .. " " .. restbonus .. " " .. class)
+ local maxlevel = 85 -- Just a default incase sender is using old version
+ 
+ if (mid7 ~= nil) then
+  class = string.sub(b, mid6 +1, mid7 - 1)
+  maxlevel = string.sub(b, mid7 +1, -1)
+ end
+ ]]--
+ local success, name, xp, xptotal, level, restbonus, xpdisabled, class, maxlevel = self:Deserialize(b)
+ if (not sucess) then
+  self:Debug("Couldn't not deserialize message " .. name)
+ end
+
+ self:Debug(name .. " " .. xp .. " " .. xptotal .. " " .. level .. " " .. restbonus .. " " .. class .. " " .. maxlevel)
 
  if (UnitName("player") == name) then -- Don't show stuff we sent, mainly for PARTY and GUILD
   self:Debug("Returning from OnComm because name == player")
@@ -1853,10 +1882,10 @@ function FriendXP:OnCommReceived(a,b,c,d)
    self:Debug("Name Tname" .. name .. " " .. Tname)
    if (strupper(name) ~= strupper(Tname)) then
     self:Debug("Sending player is not equal to sent string")
-    return
+    --return FIXME
    end
   else
-   return -- Names didn't match and not from different realm
+  -- return -- Names didn't match and not from different realm FIXME
   end
  end
 
@@ -1872,13 +1901,13 @@ function FriendXP:OnCommReceived(a,b,c,d)
   xpdisabled = 0
  end
 
- if (name ~= nil and xp ~= nil and xptotal ~= nil and level ~= nil and class ~= nil) then
+ if (name ~= nil and xp ~= nil and xptotal ~= nil and level ~= nil and class ~= nil and maxlevel ~= nil) then
   if (self.db.profile.miniframe.enabled and self.db.profile.miniframe.incoming.enabled) then -- Only flash on valid updates
    Miniframe.incoming:Show()
   end
   --self:UpdateFriendXP(name, tonumber(level), tonumber(xp), tonumber(xptotal), tonumber(restbonus), tonumber(xpdisabled))
   if self.db.profile.debug then self.Print(self,"UpdateFriendX",name,level,xp,xptotal,restbonus,xpdisabled) end
-  friendTable = {
+--[[  friendTable = {
    ["name"] = name,
    ["xp"] = tonumber(xp),
    ["totalxp"] = tonumber(xptotal),
@@ -1889,6 +1918,7 @@ function FriendXP:OnCommReceived(a,b,c,d)
    ["lastTime"] = GetTime(),
   }
   self:UpdateFriendXP(friendTable)
+  ]]--
   if (self.db.profile.doLevelUp) then
    local previousLevel = self:GetLevelByPlayer(name)
    if (previousLevel ~= nil and previousLevel < tonumber(level)) then
@@ -1896,60 +1926,37 @@ function FriendXP:OnCommReceived(a,b,c,d)
    end
   end
 
-  local index = self:RemoveFromActive(name);
-  if (index ~= -1) then
-   self:Debug("OnCommReceived- Index " .. index)
-   tinsert(activeFriends, index, friendTable)
-  else
-   tinsert(activeFriends, friendTable)
   end
- end
-
- -- NEW
  newFriends[name] = {
+  name = name,
   xp = tonumber(xp),
   totalxp = tonumber(xptotal),
   level = tonumber(level),
   restbonus = tonumber(restbonus),
   xpdisabled = tonumber(xpdisabled),
   class = class,
-  lastime = GetTime(),
+  lastTime = GetTime(),
+  maxlevel = tonumber(maxlevel)
  }
- -- NEW
 
- for i = 1, 4 do
-  if (name == UnitName("party"..i)) then
-   self.party["party" .. i] = self:Round((friendTable["xp"]/friendTable["totalxp"])*100)
-  end
- end
-
+ self:UpdateFriendXP_HELPER(name)
  self:UpdateMiniframe();
- self:UpdatePartyMembers();
 end
 
 function FriendXP:RemoveFromActive(friend)
- -- NEW
  if (newFriends[friend]) then
   self:Debug("Removing " .. friend .. " from newFriends table")
   newFriends[friend] = nil
+  --table.remove(newFriends, friend)
  end
-  
- -- END
- for i,v in ipairs(activeFriends) do
-  if (activeFriends[i]["name"] == friend) then
-   table.remove(activeFriends,i)
-   return i
-  end
- end
- return -1
 end
 
 function FriendXP:GetLevelByPlayer(friend)
- for i,v in ipairs(activeFriends) do
-  if (activeFriends[i]["name"] == friend) then
-   return activeFriends[i]["level"]
-  end
+ if (newFriends[friend]) then
+  self:Debug("GetLevelByPlayer returning newFriends entry")
+  return newFriends[friend]["level"]
  end
+
  return nil
 end
 
@@ -2003,7 +2010,7 @@ function FriendXP:Debug(msg)
  self.Print(self,"Debug",msg)
 end
 
-function launcher.OnEnter(self)
+function FriendXP.LDB.OnEnter(self)
  local tooltip = LQT:Acquire("FriendXP", 5, "LEFT", "RIGHT", "RIGHT", "RIGHT", "RIGHT")
  self.tooltip = tooltip
  if _G.TipTac and _G.TipTac.AddModifiedTip then
@@ -2014,8 +2021,8 @@ function launcher.OnEnter(self)
  tooltip:SetFont(fonts["normal"])
  tooltip:AddHeader('Name','Level','XP', 'Rest Bonus', L["XPDisabled"])
  tooltip:AddSeparator()
- for i,v in ipairs(activeFriends) do
-  local ft = activeFriends[i]
+ for key, value in pairs(newFriends) do
+  local ft = newFriends[key]
   local xpdisablemsg = "";
   if (ft["xpdisabled"] == 1) then
    xpdisablemsg = "XP Disabled";
@@ -2026,21 +2033,11 @@ function launcher.OnEnter(self)
  tooltip:Show()
 end
 
-function launcher.OnLeave(self)
+function FriendXP.LDB.OnLeave(self)
  LQT:Release(self.tooltip)
  self.tooltip = nil
 end
 
---[[
- ["name"] = friend,
-   ["xp"] = 900,
-   ["totalxp"] = 1000,
-   ["level"] = 85,
-   ["restbonus"] = 0,
-   ["xpdisabled"] = 0,
-   ["class"] = "PALADIN",
-   ["lastTime"] = GetTime(),
-]]--
 function FriendXP:MiniTooltip(frame, show, fd)
  if (show) then
   if (not self.db.profile.miniframe.tooltip.enabled) then
@@ -2142,65 +2139,88 @@ function FriendXP:DragStop(frame, button, name)
 end
 
 local partyXPFrames = { }
-FriendXP.tmp = partyXPFrames
-function FriendXP:UpdatePartyMembers()
+FriendXP.tmp = partyXPFrames -- FIXME (Just to allow me access withing WoW for testing)
+function FriendXP:HookBlizzPartyFrames()
  for i = 1, 4 do -- Hide all frames
-  if (partyXPFrames[i]) then partyXPFrames[i].frame:Hide(); partyXPFrames[i].xpbar:Hide() end
+  if (partyXPFrames[i]) then partyXPFrames[i]:Hide() end
  end
  if (not self.db.profile.integrateParty) then return end
  for i = 1, 4 do
-  local name = UnitName("party"..i)
-  if (not name) then return end
+  if (partyXPFrames[i] == nil) then
+   local partyXP = CreateFrame("Frame", nil, _G["PartyMemberFrame" .. i])
+   partyXP:SetBackdrop({bgFile = LSM:Fetch("background", "Solid")})
+   partyXP:SetBackdropColor(0,0,0,.5)
+   partyXP:SetPoint("TOPLEFT", _G["PartyMemberFrame" .. i], "TOPLEFT", 46, -31)
+   partyXP:SetWidth(66)
+   partyXP:SetHeight(4)
+   partyXP.frame = CreateFrame("Frame", nil, partyXP)
+   partyXP.frame:SetBackdrop({bgFile = LSM:Fetch("background", "PartyXPBar"), tile = false, tileSize = 0, insets = { left = 0, right = 0, top = 0, bottom = 0 }})
+   partyXP.frame:ClearAllPoints()
+   partyXP.frame:SetHeight(32)
+   partyXP.frame:SetWidth(128)
+   partyXP.frame:SetPoint("TOPLEFT", _G["PartyMemberFrame" .. i], "TOPLEFT", 42, -30)
 
-  local ft = self:FetchFriend(name)
-  if (ft == nil) then return end
-  if (not partyXPFrames[i]) then
-   local f = CreateFrame("Frame", nil, _G["PartyMemberFrame" .. i])
-   f:SetBackdrop({bgFile = LSM:Fetch("background", "PartyXPBar"), tile = false, tileSize = 0, insets = { left = 0, right = 0, top = 0, bottom = 0 }})
-   f:ClearAllPoints()
-   f:SetHeight(32)
-   f:SetWidth(128)
-   f:SetPoint("TOPLEFT", _G["PartyMemberFrame" .. i], "TOPLEFT", 42, -30)
-
-   local sbg = CreateFrame("Frame", nil, _G["PartyMemberFrame" .. i])
-   sbg:SetBackdrop({bgFile = LSM:Fetch("background", "Solid")})
-   sbg:SetBackdropColor(0,0,0,1)
-   sbg:SetPoint("TOPLEFT", _G["PartyMemberFrame" .. 1], "TOPLEFT", 46, -31)
-   sbg:SetWidth(066)
-   sbg:SetHeight(4)
-
-   local s = CreateFrame("StatusBar", nil, sbg)
-   s:SetAllPoints(sbg)
+   partyXP.xpbar = CreateFrame("StatusBar", nil, partyXP)
+   partyXP.xpbar:SetAllPoints(true)
    
-   --s:SetFrameLevel(f:GetFrameLevel()-1)
+   partyXP.xpbar:SetStatusBarTexture(LSM:Fetch("statusbar", "Blizzard"))
+   partyXP.xpbar:SetStatusBarColor(1,0,1)
+   partyXP.xpbar:SetMinMaxValues(0, 1000)
+   partyXP.xpbar:SetValue(200)
+
+   partyXP.text = partyXP.xpbar:CreateFontString(nil, 'OVERLAY')
+   partyXP.text:SetFont(LSM:Fetch("font", "Friz Quadrata TT"), 10)
+   partyXP.text:SetAllPoints(true)
    
-   s:SetStatusBarTexture(LSM:Fetch("statusbar", "Blizzard"))
-   s:SetStatusBarColor(1,0,1)
-   s:SetMinMaxValues(0, 1000)
-   s:SetValue(0)
+   --partyXP.frame:SetFrameLevel(partyXP.xpbar:GetFrameLevel() - 1)
+   --partyXP.frame:Hide()
 
-   local t = s:CreateFontString(nil, 'OVERLAY')
-   t:SetFont(LSM:Fetch("font", "Friz Quadrata TT"), 10)
-   t:SetAllPoints(s)
+   partyXPFrames[i] = partyXP
+   partyXPFrames[i]:SetScript("OnUpdate", function(self)
+   	   if (FriendXP.db.profile.integrateParty == false ) then self:Hide() return end
+   	   local xp, total, percent, restbonus = FriendXP:GetXPByUnit("party" .. i)
+   	   if (xp ~= nil) then
+            if (restbonus > 0) then
+             self.xpbar:SetStatusBarColor(0.25, 0.25, 1) -- Rested blue (I think)
+            else
+             self.xpbar:SetStatusBarColor(0.6, 0, 0.6) -- Weary Purple (I thinkg)
+            end
+   	    self.xpbar:SetMinMaxValues(0, total)
+   	    self.xpbar:SetValue(xp)
+   	    self.text:SetText(percent .. "%")
+   	   else
+   	    self.xpbar:SetValue(0)
+   	    self.text:SetText("N/A") -- Probably should just hide frame instead (But can't process OnUpdate then)
+   	   end
+   	  end)
 
-   
-   partyXPFrames[i] = { frame = f, xpbar = s, text = t }
-   --xpbar.rest = CreateFrame('StatusBar', nil, xpbar)
-
--- xpbar:SetFrameStrata(self.db.profile.friendbar.framestrata)
--- xpbar:SetFrameLevel(self.db.profile.friendbar.framelevel)
-
- --xpbar.rest:SetAllPoints(xpbar)
-
- --xpbar.text = xpbar.xp:CreateFontString(nil, 'OVERLAY')
- --xpbar.text:SetFont(LSM:Fetch("font", self.db.profile.friendbar.text.font), self.db.profile.friendbar.text.size, self.db.profile.friendbar.text.style)
- --xpbar.text:SetPoint("CENTER")
+  else
+   partyXPFrames[i]:Show()
   end
-  partyXPFrames[i].xpbar:SetMinMaxValues(0, ft["totalxp"])
-  partyXPFrames[i].xpbar:SetValue(ft["xp"])
-  partyXPFrames[i].text:SetText(self:Round((ft["xp"]/ft["totalxp"])*100) .. "%")
-
-  partyXPFrames[i].frame:Show()
-  partyXPFrames[i].xpbar:Show()
  end
 end
+
+function FriendXP:GetXPByUnit(unit)
+ self:Debug("GetXPByUnit called with " .. unit)
+ local name, _ = UnitName(unit)
+ if (name == nil) then return nil end
+
+ local ft = self:FetchFriend(name)
+ if (ft) then
+  return ft["xp"], ft["totalxp"], self:Round((ft["xp"]/ft["totalxp"])*100), ft["restbonus"] 
+ else
+  return nil, nil, nil, nil
+ end
+end
+
+--[[
+function FriendXP:SplitName(toon) -- Breaks name into name, realm
+ local mid = string.find(toon, " ", 1, true)
+ if (mid == nil) then return toon end
+
+ local name = string.sub(toon, 1, mid - 1)
+ local realm = string.sub(toon, mid + 1, -1)
+ 
+ return name, realm
+end
+]]--

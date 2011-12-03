@@ -1,6 +1,6 @@
-## Interface: 40200
+## Interface: 40300
 ## Title: FriendXP
-## Version: 1.04
+## Version: 1.05
 ## Notes: Tracks friend's experience
 ## Author: Bartruby of Cairne
 ## OptionalDeps: Ace3
