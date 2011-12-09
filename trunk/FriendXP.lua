@@ -32,7 +32,7 @@ FriendXP.LDB = LibStub:GetLibrary("LibDataBroker-1.1"):NewDataObject("FriendXP",
  icon = "Interface\\ICONS\\Achievement_DoubleRainbow.blp",
  OnClick = function(clickedFrame, button)
   if (button == "LeftButton") then
-   FriendXP:SendXP() 
+   FriendXP:SendXP()
   elseif (button == "RightButton") then
    if (configGenerated) then
     InterfaceOptionsFrame_OpenToCategory(FriendXP.configFrame)
@@ -74,54 +74,26 @@ local function giveOptions(self)
   },
   online = {
    name = L["Check Online Status"],
-   desc = "Verify player is online before sending message",
+   desc = L["CheckOnlineDesc"],
    order = 3,
    type = "toggle",
    get = function(info) return self.db.profile.checkOnline end,
    set = function(info, value) self.db.profile.checkOnline = value end,
   },
   doLevelUp = {
-   name = "Level Up Message",
-   desc = "Show a UIErrors message when a player levels up",
+   name = L["Level Up Message"],
+   desc = L["LevelUpMessageDesc"],
    order = 4,
    type = "toggle",
    get = function(i) return self.db.profile.doLevelUp end,
    set = function(i, v) self.db.profile.doLevelUp = v end,
   },
   integrateParty = {
-   name = "Integrate with party frames",
-   desc = "Only works with default blizzard party frames",
+   name = L["IntegrateParty"],
+   desc = L["IntegratePartyDesc"],
    type = "toggle",
    get = function(i) return self.db.profile.integrateParty end,
    set = function(i, v) self.db.profile.integrateParty = v; self:HookBlizzPartyFrames() end,
-  },
-  replyAll = {
-   name = L["Send to all friends"],
-   desc = "Send to all friends on friendlist that are on same server",
-   type = "toggle",
-   get = function(i) return self.db.profile.sendAll end,
-   set = function(i, v) self.db.profile.sendAll = v end,
-  },
-  partyAll = {
-   name = "Send to party",
-   desc = "Send to party (Must be enabled to receive party experience); only way to send to real id friends cross-realm",
-   type = "toggle",
-   get = function(i) return self.db.profile.partyAll end,
-   set = function(i, v) self.db.profile.partyAll = v end,
-  },
-  bgAll = {
-   name = "Send to Battleground",
-   desc = "Send to party doesn't work in battlegrounds, enable this to share xp while in a battleground",
-   type = "toggle",
-   get = function(i) return self.db.profile.bgAll end,
-   set = function(i, v) self.db.profile.bgAll = v end,
-  },
-  guildAll = {
-   name = L["Send to guild"],
-   desc = L["Send to entire guild, must be enabled to receive guild experience"],
-   type = "toggle",
-   get = function(i) return self.db.profile.guildAll end,
-   set = function(i, v) self.db.profile.guildAll = v end,
   },
   ignoreWhisper = {
    name = L["Ignore Whispers"],
@@ -132,12 +104,12 @@ local function giveOptions(self)
   },
   onlyFriends = {
    name = L["Only allow friends"],
-   desc = "Only show the experience of players on your friendlist",
+   desc = L["OnlyFriendsDesc"],
    type = "toggle",
    get = function(i) return self.db.profile.onlyFriends end,
    set = function(i, v) self.db.profile.onlyFriends = v end,
   },
-  friend = {
+ --[[ friend = {
    name = L["AddFriend"],
    desc = L["AddFriend_Desc"],
    order = 4,
@@ -153,7 +125,7 @@ local function giveOptions(self)
    --get = function(info) return self.db.profile.friends end,
    set = function(i, v) self.Print("i",i,"v",v,"combined",self.db.profile.friends[v]); self:DeleteFriend(v); end,
    style = "dropdown",
-  },
+  }, ]]
   friendttl = {
    name = L["FriendTTL"],
    desc = L["FriendTTL_Desc"],
@@ -161,6 +133,41 @@ local function giveOptions(self)
    min = 10, max = 1800, step = 1,
    set = function(i, v) self.db.profile.miniframe.threshold = v end,
    get = function(i) return self.db.profile.miniframe.threshold end,
+  },
+  sendoptions = {
+   name = L["Broadcast To"],
+   order = 0.9,
+   type = "group",
+   args = {
+    friendAll = {
+     name = L["SendFriends"],
+     desc = L["SendFriendsDesc"],
+     type = "toggle",
+     get = function(i) return self.db.profile.sendAll end,
+     set = function(i, v) self.db.profile.sendAll = v end,
+    },
+    partyAll = {
+     name = L["SendParty"],
+     desc = L["SendPartyDesc"],
+     type = "toggle",
+     get = function(i) return self.db.profile.partyAll end,
+     set = function(i, v) self.db.profile.partyAll = v end,
+    },
+    bgAll = {
+     name = L["SendBattleground"],
+     desc = L["SendBattlegroundDesc"],
+     type = "toggle",
+     get = function(i) return self.db.profile.bgAll end,
+     set = function(i, v) self.db.profile.bgAll = v end,
+    },
+    guildAll = {
+     name = L["SendGuild"],
+     desc = L["SendGuildDesc"],
+     type = "toggle",
+     get = function(i) return self.db.profile.guildAll end,
+     set = function(i, v) self.db.profile.guildAll = v end,
+    },
+   },
   },
   friendbar = {
    name = "FriendBar",
@@ -600,32 +607,49 @@ local function giveOptions(self)
      get = function(i) return self.db.profile.miniframe.rest.enabled end,
      set = function(i, v) self.db.profile.miniframe.rest.enabled = v; self:UpdateMiniframe() end
     },
-    xpbarrestcustom = {
-     name = "Use custome XP Bar Restbonus Color",
-     order = 5.71,
-     type = "toggle",
-     get = function(i) return self.db.profile.miniframe.rest.custom end,
-     set = function(i, v) self.db.profile.miniframe.rest.custom = v; self:UpdateMiniframe() end
-    },
-    xpbarrestcolor = {
-     name = "XP Bar Restbonus Color",
-     order = 5.8,
-     type = "color",
-     hasAlpha = false,
-     get = function(i) return self.db.profile.miniframe.rest.color.r, self.db.profile.miniframe.rest.color.g, self.db.profile.miniframe.rest.color.b end,
-     set = function(i, r, g, b) self.db.profile.miniframe.rest.color.r = r; self.db.profile.miniframe.rest.color.g = g; self.db.profile.miniframe.rest.color.b = b; self:UpdateMiniframe() end,
-    },
-    namelength = {
+	namelength = {
      name = "Name Length",
      desc = "Name will be truncated to this length, 0 to disable",
-     order = 5.9,
+     order = 5.8,
      type = "range",
      min = 0, max = 20, step = 1,
      set = function(i, v) self.db.profile.miniframe.xp.namelen = v; self:UpdateMiniframe() end,
      get = function(i) return self.db.profile.miniframe.xp.namelen end,
     },
+    xpbarrestcustom = {
+     name = L["CustomRestXPBarColorToggle"],
+	 desc = L["CustomRestXPBarColorToggleDesc"],
+     order = 5.81,
+     type = "toggle",
+     get = function(i) return self.db.profile.miniframe.rest.custom end,
+     set = function(i, v) self.db.profile.miniframe.rest.custom = v; self:UpdateMiniframe() end
+    },
+    xpbarrestcolor = {
+     name = L["CustomRestXPBarColor"],
+     order = 5.82,
+     type = "color",
+     hasAlpha = false,
+     get = function(i) return self.db.profile.miniframe.rest.color.r, self.db.profile.miniframe.rest.color.g, self.db.profile.miniframe.rest.color.b end,
+     set = function(i, r, g, b) self.db.profile.miniframe.rest.color.r = r; self.db.profile.miniframe.rest.color.g = g; self.db.profile.miniframe.rest.color.b = b; self:UpdateMiniframe() end,
+    },
+    xpbarcustom = {
+	 name = L["CustomXPBarColorToggle"],
+	 desc = L["CustomXPBarColorToggleDesc"],
+	 order = 5.83,
+	 type = "toggle",
+	 get = function(i) return db.miniframe.xp.custom end,
+	 set = function(i, v) db.miniframe.xp.custom = v; self:UpdateMiniframe() end,
+	},
+	xpbarcolor = {
+	 name = L["CustomXPBarColor"],
+	 order = 5.84,
+	 type = "color",
+	 hasAlpha = false,
+	 get = function(i) local x = db.miniframe.xp.color; return x.r, x.g, x.b end,
+	 set = function(i, r, g, b) local x = db.miniframe.xp.color; x.r = r; x.g = g; x.b = b; self:UpdateMiniframe() end
+	},
     face = {
-     name = "Font Face",
+     name = L["Font Face"],
      desc = "Fontface",
      order = 5.910,
      type = "select",
@@ -635,7 +659,7 @@ local function giveOptions(self)
      set = function(info, value) self.db.profile.miniframe.xp.text.font = value; self:UpdateMiniframe() end,
     },
     style = {
-     name = "Font Style",
+     name = L["Font Style"],
      order = 5.911,
      type = "select",
      style = "dropdown",
@@ -644,7 +668,7 @@ local function giveOptions(self)
      get = function(i) return self.db.profile.miniframe.xp.text.style end,
     },
     size = {
-     name = "Font Size",
+     name = L["Font Size"],
      desc = "Size of the text",
      order = 5.912,
      type = "range",
@@ -653,7 +677,7 @@ local function giveOptions(self)
      set = function(info, value) self.db.profile.miniframe.xp.text.size = value; self:UpdateMiniframe(); end,
     },
     textcolor = {
-     name = "Font Color",
+     name = L["Font Color"],
      order = 5.913,
      type = "color",
      hasAlpha = true,
@@ -661,7 +685,7 @@ local function giveOptions(self)
      set = function(info, r, g, b, a) self.db.profile.miniframe.xp.text.color.r = r; self.db.profile.miniframe.xp.text.color.g = g; self.db.profile.miniframe.xp.text.color.b = b; self.db.profile.miniframe.xp.text.color.a = a; self:UpdateMiniframe() end,
     },
     formatstring = {
-     name = "Format String",
+     name = L["Format String"],
      desc = "Changes the way information is displayed on the mini xp bars, default is %l: %n",
      order = 5.914,
      type = "input",
@@ -1000,6 +1024,7 @@ function FriendXP:UpdateFriendXP(ft) -- Friendbar
 end
 
 function FriendXP:FormatString(string, ft)
+ self:Debug("Format String: " .. string)
  local pname = ft["name"]
  if (self.db.profile.miniframe.xp.namelen > 0) then
   pname = strsub(ft["name"], 0, self.db.profile.miniframe.xp.namelen)
@@ -1048,7 +1073,7 @@ function FriendXP:FlashFrame(frame)
  end
 
  frame:SetAlpha(alpha)
- 
+
  if (frame:GetAlpha() <= 0) then
   frame:SetAlpha(0)
   frame:Hide()
@@ -1180,7 +1205,7 @@ function FriendXP:CreateMinibar(ft, b, y, x) -- This whole function needs work
  --frame.xp:ClearAllPoints()
  --frame.xp:SetAllPoints(true)
  frame.xp:SetMinMaxValues(0, ft["totalxp"])
- 
+
 
  if (ft["level"] == ft["maxlevel"]) then
   frame.xp:SetValue(ft["totalxp"])
@@ -1204,9 +1229,13 @@ function FriendXP:CreateMinibar(ft, b, y, x) -- This whole function needs work
   frame:SetStatusBarColor(RAID_CLASS_COLORS[class]["r"] - 0.2, RAID_CLASS_COLORS[class]["g"] - 0.2, RAID_CLASS_COLORS[class]["b"] - 0.2)
  end
  frame:Show()
- 
+
  frame.xp:SetStatusBarTexture(LSM:Fetch("statusbar", db.xp.texture))
- frame.xp:SetStatusBarColor(RAID_CLASS_COLORS[class]["r"], RAID_CLASS_COLORS[class]["g"], RAID_CLASS_COLORS[class]["b"])
+ if (db.xp.custom) then
+  frame.xp:SetStatusBarColor(db.xp.color.r, db.xp.color.g, db.xp.color.b)
+ else
+  frame.xp:SetStatusBarColor(RAID_CLASS_COLORS[class]["r"], RAID_CLASS_COLORS[class]["g"], RAID_CLASS_COLORS[class]["b"])
+ end
  frame.bg:ClearAllPoints()
  frame.bg:SetAllPoints(true)
  frame.bg:SetTexture(LSM:Fetch("statusbar", db.xp.texture))
@@ -1274,7 +1303,7 @@ function FriendXP:GetCreateXPBar(key)
     self:Debug("Recycling " .. key);
     frameCache[frame] = nil;
     miniframes[key] = frame;
-    return miniframes[key] 
+    return miniframes[key]
   else
    self:Debug("Creating " .. key);
    frame = CreateFrame("StatusBar", nil, Miniframe)
@@ -1472,6 +1501,12 @@ function FriendXP:OnInitialize()
       b = 0,
       a = 0.5,
      },
+	 color = {
+	  r = 1,
+	  g = 1,
+	  b = 1,
+	 },
+	 custom = false,
      namelen = 0,
      offsetx = 10,
      offsety = 6,
@@ -1565,7 +1600,7 @@ function FriendXP:UpdateFont(thing)
 
  local things = self.db.profile.tooltip
  fonts[thing]:SetFont(LSM:Fetch("font", things[thing]["font"]), things[thing]["size"])
- fonts[thing]:SetTextColor(things[thing]["color"]["r"], things[thing]["color"]["g"], things[thing]["color"]["b"]) 
+ fonts[thing]:SetTextColor(things[thing]["color"]["r"], things[thing]["color"]["g"], things[thing]["color"]["b"])
 end
 
 function FriendXP:UpdateFONTS() -- Going do something about all these update fonts someday
@@ -1590,7 +1625,7 @@ function FriendXP:UpdateMedia(event, mediatype, key)
   if key == self.db.profile.miniframe.outgoing.texture then doUpdate = true end
   if key == self.db.profile.miniframe.incoming.texture then doUpdate = true end
  end
- 
+
  if doUpdate == true then
   self:UpdateSettings();
   self:UpdateFont("header");
@@ -1614,7 +1649,7 @@ function FriendXP:OnEnable()
  self:RegisterBucketEvent({ "PLAYER_XP_UPDATE", "UPDATE_EXHAUSTION", "ENABLE_XP_GAIN", "DISABLE_XP_GAIN" }, 2, "SendXP")
  self:ScheduleRepeatingTimer("SendXP", 45)
  self:UpdateSettings()
- 
+
  if (self.db.profile.friendbar.enabled == true and self.db.profile.enabled) then
   xpbar:Show()
  else
@@ -1645,7 +1680,7 @@ function FriendXP:ToggleFriendbar()
 end
 
 function FriendXP:WorldEnter()
- LibStub("AceConfigRegistry-3.0"):RegisterOptionsTable("FriendXP", giveOptions(FriendXP))  -- I do this here instead of in OnInitialize() because values are accurate now 
+ LibStub("AceConfigRegistry-3.0"):RegisterOptionsTable("FriendXP", giveOptions(FriendXP))  -- I do this here instead of in OnInitialize() because values are accurate now
  self.configFrame = LibStub("AceConfigDialog-3.0"):AddToBlizOptions("FriendXP", "FriendXP")
  self:UnregisterEvent("PLAYER_ENTERING_WORLD")
 
@@ -1661,7 +1696,7 @@ function FriendXP:HandleIt(input)
  end
 
  local command, nextposition = self:GetArgs(input,1,1)
- 
+
  if (command == "add") then
   local friend = self:GetArgs(input,2,nextposition)
   if (friend == nil) then
@@ -1681,7 +1716,7 @@ function FriendXP:HandleIt(input)
   self:ToggleLock()
   return
  end
- 
+
  if (command == "send") then
   self:SendXP()
   self:UpdateMiniframe()
@@ -1759,7 +1794,7 @@ function FriendXP:SendXP()
    end
   end
   --[[ if (onlineFriends > 0) then -- First do normal friends -- NOT SURE IF ONLY USING ONLINE FRIENDS IS CORRECT, but maybe since online friends are always on top
-   for friendL = 1,onlineFriends do 
+   for friendL = 1,onlineFriends do
     local nameT, levelT, classT, areaT, connectedT, statusT, noteT = GetFriendInfo(friendL)
     if (nameT == nil) then
      self.Print(self, "name was nil on GetFriendInfo(" .. friendL .. "). GetNumFriends() returned " .. numberOfFriends .. " and " .. onlineFriends)
@@ -1855,7 +1890,7 @@ function FriendXP:OnCommReceived(a,b,c,d)
  local xpdisabled = string.sub(b, mid5 + 1, mid6 - 1)
  local class = string.sub(b, mid6 + 1, -1)
  local maxlevel = 85 -- Just a default incase sender is using old version
- 
+
  if (mid7 ~= nil) then
   class = string.sub(b, mid6 +1, mid7 - 1)
   maxlevel = string.sub(b, mid7 +1, -1)
@@ -2048,15 +2083,15 @@ function FriendXP:MiniTooltip(frame, show, fd)
   end
   local tooltip = LQT:Acquire("FriendXP", 2, "LEFT", "RIGHT")
   self.tooltip = tooltip
- 
+
   tooltip:SetFont(self.fonts["class"][fd["class"]])
   tooltip:AddLine(fd["name"])
   tooltip:SetFont(fonts["normal"])
-  tooltip:AddLine("Level:", fd["level"])
-  tooltip:AddLine("Experience:", fd["xp"] .. "/" .. fd["totalxp"] .. " (" .. self:Round((fd["xp"]/fd["totalxp"])*100) .. "%)")
-  tooltip:AddLine("Rest Bonus:", fd["restbonus"])
-  tooltip:AddLine("Remaining:", fd["totalxp"] - fd["xp"])
-  tooltip:AddLine("Bars Left:", self:Round((fd["totalxp"] - fd["xp"])/(fd["totalxp"]/20)))
+  tooltip:AddLine(L["Level"] .. ":", fd["level"])
+  tooltip:AddLine(L["Experience"] .. ":", fd["xp"] .. "/" .. fd["totalxp"] .. " (" .. self:Round((fd["xp"]/fd["totalxp"])*100) .. "%)")
+  tooltip:AddLine(L["Rest Bonus"] .. ":", fd["restbonus"])
+  tooltip:AddLine(L["Remaining"] .. ":", fd["totalxp"] - fd["xp"])
+  tooltip:AddLine(L["Bars Left"] .. ":", self:Round((fd["totalxp"] - fd["xp"])/(fd["totalxp"]/20)))
   if (fd["xpdisabled"] == 1) then
    tooltip:AddLine(L["XPDisabled"])
   end
@@ -2081,7 +2116,7 @@ function FriendXP:ToggleLock()
   Miniframe.move:SetScript("OnMouseDown", function(self, button) FriendXP:DragStart(self, button, "miniframe") end)
   Miniframe.move:SetScript("OnMouseUp", function(self, button) FriendXP:DragStop(self, button, "miniframe") end)
   Miniframe:SetAllPoints(Miniframe.move)
- 
+
   xpbar.move:ClearAllPoints()
   xpbar.move:SetFrameStrata("TOOLTIP")
   xpbar.move:SetPoint("TOPLEFT", UIParent, "TOPLEFT", self.db.profile.friendbar.x, self.db.profile.friendbar.y)
@@ -2139,7 +2174,7 @@ function FriendXP:DragStop(frame, button, name)
 end
 
 local partyXPFrames = { }
-FriendXP.tmp = partyXPFrames -- FIXME (Just to allow me access withing WoW for testing)
+--FriendXP.tmp = partyXPFrames -- FIXME (Just to allow me access withing WoW for testing)
 function FriendXP:HookBlizzPartyFrames()
  for i = 1, 4 do -- Hide all frames
   if (partyXPFrames[i]) then partyXPFrames[i]:Hide() end
@@ -2162,7 +2197,7 @@ function FriendXP:HookBlizzPartyFrames()
 
    partyXP.xpbar = CreateFrame("StatusBar", nil, partyXP)
    partyXP.xpbar:SetAllPoints(true)
-   
+
    partyXP.xpbar:SetStatusBarTexture(LSM:Fetch("statusbar", "Blizzard"))
    partyXP.xpbar:SetStatusBarColor(1,0,1)
    partyXP.xpbar:SetMinMaxValues(0, 1000)
@@ -2171,7 +2206,7 @@ function FriendXP:HookBlizzPartyFrames()
    partyXP.text = partyXP.xpbar:CreateFontString(nil, 'OVERLAY')
    partyXP.text:SetFont(LSM:Fetch("font", "Friz Quadrata TT"), 10)
    partyXP.text:SetAllPoints(true)
-   
+
    --partyXP.frame:SetFrameLevel(partyXP.xpbar:GetFrameLevel() - 1)
    --partyXP.frame:Hide()
 
@@ -2183,7 +2218,7 @@ function FriendXP:HookBlizzPartyFrames()
             if (restbonus > 0) then
              self.xpbar:SetStatusBarColor(0.25, 0.25, 1) -- Rested blue (I think)
             else
-             self.xpbar:SetStatusBarColor(0.6, 0, 0.6) -- Weary Purple (I thinkg)
+             self.xpbar:SetStatusBarColor(0.6, 0, 0.6) -- Weary Purple (I think)
             end
    	    self.xpbar:SetMinMaxValues(0, total)
    	    self.xpbar:SetValue(xp)
@@ -2200,16 +2235,20 @@ function FriendXP:HookBlizzPartyFrames()
  end
 end
 
-function FriendXP:GetXPByUnit(unit)
+function FriendXP:GetXPByUnit(unit, formatString)
  self:Debug("GetXPByUnit called with " .. unit)
  local name, _ = UnitName(unit)
  if (name == nil) then return nil end
 
  local ft = self:FetchFriend(name)
- if (ft) then
-  return ft["xp"], ft["totalxp"], self:Round((ft["xp"]/ft["totalxp"])*100), ft["restbonus"] 
- else
+ if (ft and formatString == nil) then
+  return ft["xp"], ft["totalxp"], self:Round((ft["xp"]/ft["totalxp"])*100), ft["restbonus"]
+ elseif(ft == nil and formatString == nil) then
   return nil, nil, nil, nil
+ elseif (ft and formatString ~= nil) then
+  return self:FormatString(formatString, ft)
+ else
+  return nil
  end
 end
 
@@ -2220,7 +2259,7 @@ function FriendXP:SplitName(toon) -- Breaks name into name, realm
 
  local name = string.sub(toon, 1, mid - 1)
  local realm = string.sub(toon, mid + 1, -1)
- 
+
  return name, realm
 end
 ]]--
