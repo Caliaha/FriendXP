@@ -901,7 +901,8 @@ function FriendXP:DeleteFriend(friend)
  table.remove(self.db.profile.friends, friend)
 end
 
-function FriendXP:CreateFriendXPBar()
+function FriendXP:CreateFriendXPBar() -- Should merge its update functions here aswell like SetupMiniframe
+ if (xpbar) then return end
  xpbar = CreateFrame("Frame", nil, UIParent)
  xpbar.bg = xpbar:CreateTexture(nil, 'BACKGROUND')
  xpbar.rest = CreateFrame('StatusBar', nil, xpbar)
@@ -910,9 +911,9 @@ function FriendXP:CreateFriendXPBar()
  xpbar:SetFrameStrata(self.db.profile.friendbar.framestrata)
  xpbar:SetFrameLevel(self.db.profile.friendbar.framelevel)
 
- xpbar.bg:SetAllPoints(xpbar)
- xpbar.xp:SetAllPoints(xpbar)
- xpbar.rest:SetAllPoints(xpbar)
+ xpbar.bg:SetAllPoints(true)
+ xpbar.xp:SetAllPoints(true)
+ xpbar.rest:SetAllPoints(true)
 
  xpbar.text = xpbar.xp:CreateFontString(nil, 'OVERLAY')
  xpbar.text:SetFont(LSM:Fetch("font", self.db.profile.friendbar.text.font), self.db.profile.friendbar.text.size, self.db.profile.friendbar.text.style)
@@ -935,7 +936,7 @@ function FriendXP:CreateFriendXPBar()
  xpbar.move = CreateFrame("Frame", nil, UIParent)
  xpbar.move:SetBackdrop({bgFile = LSM:Fetch("background", "Solid")})
  xpbar.move:SetBackdropColor(1,0,0,0.75)
- xpbar.move:SetAllPoints(xpbar)
+ xpbar.move:SetAllPoints(true)
  xpbar.move:Hide()
 
  xpbar:Hide()
@@ -1773,7 +1774,7 @@ function FriendXP:SendXP()
   self:SendCommMessage("friendxp", msg, "GUILD", friend)
  end
 
- if (self.db.profile.bgAll and UnitInBattleground("player")) then -- Send to battleground (not yet implemented)
+ if (self.db.profile.bgAll and UnitInBattleground("player")) then -- Send to battleground
   self:Debug("Sending to Battleground")
   self:SendCommMessage("friendxp", msg, "BATTLEGROUND", friend)
  end
