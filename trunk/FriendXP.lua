@@ -9,6 +9,8 @@ LSM:Register("background", "Wireless Icon", "Interface\\Addons\\FriendXP\\Artwor
 LSM:Register("background", "Wireless Icon2", "Interface\\Addons\\FriendXP\\Artwork\\wlan_wizard2.tga")
 LSM:Register("background", "Wireless Incoming", "Interface\\Addons\\FriendXP\\Artwork\\wlan_incoming.tga")
 LSM:Register("background", "PartyXPBar", "Interface\\Addons\\FriendXP\\Artwork\\partyxpbar.tga")
+LSM:Register("border", "Thin Square 1px", "Interface\\Addons\\FriendXP\\Artwork\\Square 1px.tga")
+LSM:Register("border", "Thin Square 2px", "Interface\\Addons\\FriendXP\\Artwork\\Square 2px.tga")
 
 local newFriends = { }; -- Needs renaming
 local fonts = { };
@@ -1749,7 +1751,7 @@ function FriendXP:SendXP()
  local xptotal = UnitXPMax("player");
  local level = UnitLevel("player");
  local _, class = UnitClass("player");
- local maxlevel = MAX_PLAYER_LEVEL_TABLE[GetAccountExpansionLevel()]
+ local maxlevel = MAX_PLAYER_LEVEL_TABLE[GetExpansionLevel()]
  newFriends[player] = {
   name = player,
   xp = xp,
