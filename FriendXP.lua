@@ -1381,10 +1381,10 @@ function FriendXP:OnInitialize()
  local defaults = { -- Still needs work on better out of the box defaults
   profile = {
    enabled = true,
-   version = 1.01,
+   version = 1.09,
    debug = false,
    checkOnline = true,
-   integrateParty = false,
+   integrateParty = true,
    sendAll = true,
    partyAll = true,
    bgAll = false,
@@ -1504,12 +1504,12 @@ function FriendXP:OnInitialize()
       b = 0,
       a = 0.5,
      },
-	 color = {
-	  r = 1,
-	  g = 1,
-	  b = 1,
-	 },
-	 custom = false,
+     color = {
+      r = 1,
+      g = 1,
+      b = 1,
+     },
+     custom = false,
      namelen = 0,
      offsetx = 10,
      offsety = 6,
@@ -1796,21 +1796,12 @@ function FriendXP:SendXP()
     end
    end
   end
-  --[[ if (onlineFriends > 0) then -- First do normal friends -- NOT SURE IF ONLY USING ONLINE FRIENDS IS CORRECT, but maybe since online friends are always on top
-   for friendL = 1,onlineFriends do
-    local nameT, levelT, classT, areaT, connectedT, statusT, noteT = GetFriendInfo(friendL)
-    if (nameT == nil) then
-     self.Print(self, "name was nil on GetFriendInfo(" .. friendL .. "). GetNumFriends() returned " .. numberOfFriends .. " and " .. onlineFriends)
-     break
-    end
-    self:SendCommMessage("friendxp", player .. ":" .. xp .. ":" .. xptotal .. ":" .. level .. ":" .. restbonus .. ":" .. xpdisabled .. ":" .. class, "WHISPER", nameT)
-   end ]]--
 
   local numberOfBFriends, BonlineFriends = BNGetNumFriends() -- Then do RealID Friends
   if (numberOfBFriends > 0) then
    for Bfriend = 1, numberOfBFriends do
-    local presenceID, givenName, surname, toonName, toonID, client, isOnline, lastOnline, isAFK, isDND, broadcastText, noteText, isFriend, broadcastTime  = BNGetFriendInfo(Bfriend)
-    self:Debug("Sending to BNet " .. givenName)
+    local presenceID, presenceName, battleTag, isBattleTagPresence, toonName, toonID, client, isOnline, lastOnline, isAFK, isDND, messageText, noteText, isRIDFriend, messageTime, canSoR  = BNGetFriendInfo(Bfriend)
+    self:Debug("Sending to BNet " .. presenceName)
     self:Debug(toonName)
     if (toonID ~= nil and isOnline == true) then
 
@@ -1819,22 +1810,10 @@ function FriendXP:SendXP()
       local _, _, _, realmName, _, _, _, _, _, _, _ = BNGetToonInfo(toonID)
       if (realmName == GetRealmName()) then
        self:SendCommMessage("friendxp", msg, "WHISPER", toonName)
-   --[[   else -- Doesn't Work
-       self:Debug("Attempting to send cross realm")
-       local crossServer = toonName .. "-" .. realmName
-       self:Debug(crossServer)
-       self:SendCommMessage("friendxp", player .. ":" .. xp .. ":" .. xptotal .. ":" .. level .. ":" .. restbonus .. ":" .. xpdisabled .. ":" .. class, "WHISPER", crossServer)
-]]--
       end
      end
     end
    end
-   --[[ for Bfriend = 1,BonlineFriends do -- Also not sure
-    local presenceID, givenName, surname, toonName, toonID, client, isOnline, lastOnline, isAFK, isDND, broadcastText, noteText, isFriend, broadcastTime  = BNGetFriendInfo(Bfriend)
-    if CanCooperateWithToon(toonID) then
-     self:SendCommMessage("friendxp", player .. ":" .. xp .. ":" .. xptotal .. ":" .. level .. ":" .. restbonus .. ":" .. xpdisabled .. ":" .. class, "WHISPER", toonName)
-    end
-   end ]]--
   end
 
   return -- Don't need to bother sending to individual friends
@@ -1944,7 +1923,7 @@ function FriendXP:OnCommReceived(a,b,c,d)
    Miniframe.incoming:Show()
   end
   --self:UpdateFriendXP(name, tonumber(level), tonumber(xp), tonumber(xptotal), tonumber(restbonus), tonumber(xpdisabled))
-  if self.db.profile.debug then self.Print(self,"UpdateFriendX",name,level,xp,xptotal,restbonus,xpdisabled) end
+  if self.db.profile.debug then self.Print(self,"UpdateFriendXP",name,level,xp,xptotal,restbonus,xpdisabled) end
 --[[  friendTable = {
    ["name"] = name,
    ["xp"] = tonumber(xp),
@@ -2028,7 +2007,7 @@ function FriendXP:FriendCheck(realm, friend)
  end
  if (BonlineFriends > 0) then
   for Bfriend = 1,BonlineFriends do
-  local presenceID, givenName, surname, toonName, toonID, client, isOnline, lastOnline, isAFK, isDND, broadcastText, noteText, isFriend, broadcastTime  = BNGetFriendInfo(Bfriend)
+  local presenceID, presenceName, battleTag, isBattleTagPresence, toonName, toonID, client, isOnline, lastOnline, isAFK, isDND, messageText, noteText, isRIDFriend, messageTime, canSoR  = BNGetFriendInfo(Bfriend)
    if (CanCooperateWithToon(toonID) or UnitInParty(toonName)) then
     if (toonName == friend) then
      return true
