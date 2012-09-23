@@ -1890,19 +1890,21 @@ function FriendXP:OnCommReceived(a,b,c,d)
   return
  end
  -- Make sure player is only sending their info
- -- add crosserver support to tell between Player and Player-Realm
+ -- add cross realm support to tell between Player and Player-Realm
  if (strupper(name) ~= strupper(d)) then
+  --self:Print(name,d) -- FIXME
   local Tmid = string.find(d, "-", 1, true)
   if (Tmid) then
    self:Debug("Tmid " .. Tmid)
    local Tname = string.sub(d, 1, Tmid - 1)
    self:Debug("Name Tname" .. name .. " " .. Tname)
    if (strupper(name) ~= strupper(Tname)) then
+    --self:Print(name,Tname)
     self:Debug("Sending player is not equal to sent string")
-    --return FIXME
+    return 
    end
   else
-  -- return -- Names didn't match and not from different realm FIXME
+   return -- Names didn't match and not from different realm FIXME
   end
  end
 
@@ -2156,7 +2158,7 @@ function FriendXP:DragStop(frame, button, name)
 end
 
 local partyXPFrames = { }
---FriendXP.tmp = partyXPFrames -- FIXME (Just to allow me access withing WoW for testing)
+--FriendXP.tmp = partyXPFrames -- FIXME (Just to allow me access within WoW for testing)
 function FriendXP:HookBlizzPartyFrames()
  for i = 1, 4 do -- Hide all frames
   if (partyXPFrames[i]) then partyXPFrames[i]:Hide() end
@@ -2205,9 +2207,11 @@ function FriendXP:HookBlizzPartyFrames()
    	    self.xpbar:SetMinMaxValues(0, total)
    	    self.xpbar:SetValue(xp)
    	    self.text:SetText(percent .. "%")
+		self.xpbar:SetAlpha(1)
    	   else
    	    self.xpbar:SetValue(0)
    	    self.text:SetText("N/A") -- Probably should just hide frame instead (But can't process OnUpdate then)
+		self.xpbar:SetAlpha(0)
    	   end
    	  end)
 
