@@ -1675,7 +1675,7 @@ end
 
 -- Does this have a use anymore?
 function FriendXP:ToggleFriendbar()
- if (self.db.profile.friendbar.enabled == true and self.db.profile.enabled) then
+ if (self.db.profile.friendbar.enabled and self.db.profile.enabled) then
   xpbar:Show()
  else
   xpbar:Hide()
@@ -1717,6 +1717,34 @@ function FriendXP:HandleIt(input)
 
  if (command == "togglelock") then
   self:ToggleLock()
+  return
+ end
+
+ if (command == "toggle") then
+  local nc = self:GetArgs(input, 1, nextposition)
+
+  if (nc == "miniframe") then
+   if (self.db.profile.miniframe.enabled) then
+    self.db.profile.miniframe.enabled = false
+   else
+    self.db.profile.miniframe.enabled = true
+   end
+   self:SetupMiniframe()
+  elseif (nc == "xpbar") then
+   if (self.db.profile.friendbar.enabled) then
+    self.db.profile.friendbar.enabled = false
+   else
+    self.db.profile.friendbar.enabled = true
+   end
+   self:ToggleFriendbar()
+  elseif (nc == "blizz") then
+   if (self.db.profile.integrateParty) then
+    self.db.profile.integrateParty = false
+   else
+    self.db.profile.integrateParty = true
+   end
+   self:HookBlizzPartyFrames()
+  end
   return
  end
 
@@ -1879,8 +1907,9 @@ function FriendXP:OnCommReceived(a,b,c,d)
  end
  ]]--
  local success, name, xp, xptotal, level, restbonus, xpdisabled, class, maxlevel = self:Deserialize(b)
- if (not sucess) then
+ if (not success) then
   self:Debug("Couldn't not deserialize message " .. name)
+  return
  end
 
  self:Debug(name .. " " .. xp .. " " .. xptotal .. " " .. level .. " " .. restbonus .. " " .. class .. " " .. maxlevel)
@@ -1985,9 +2014,14 @@ function FriendXP:DoLevelUp(friend, level)
  return
 end
 
-function FriendXP:Round(n, precision)
+function FriendXP:Round(n, precision, roundDown)
  local m = 10^(precision or 0)
- return floor(m*n + 0.5)/m
+
+ if (roundDown) then
+  return floor(m*n)/m
+ else
+  return floor(m*n + 0.5)/m
+ end
 end
 
 -- Cycles through friend list and real id friends to see if any given friend is online
@@ -2068,14 +2102,18 @@ function FriendXP:MiniTooltip(frame, show, fd)
   local tooltip = LQT:Acquire("FriendXP", 2, "LEFT", "RIGHT")
   self.tooltip = tooltip
 
+  local rested = (fd["restbonus"] / ((fd["totalxp"] / 100) * 1.5))
+  rested = self:Round(rested,1) .. "%"
+
   tooltip:SetFont(self.fonts["class"][fd["class"]])
   tooltip:AddLine(fd["name"])
   tooltip:SetFont(fonts["normal"])
   tooltip:AddLine(L["Level"] .. ":", fd["level"])
   tooltip:AddLine(L["Experience"] .. ":", fd["xp"] .. "/" .. fd["totalxp"] .. " (" .. self:Round((fd["xp"]/fd["totalxp"])*100) .. "%)")
   tooltip:AddLine(L["Rest Bonus"] .. ":", fd["restbonus"])
+  tooltip:AddLine(L["Rest Percent"] .. ":", rested)
   tooltip:AddLine(L["Remaining"] .. ":", fd["totalxp"] - fd["xp"])
-  tooltip:AddLine(L["Bars Left"] .. ":", self:Round((fd["totalxp"] - fd["xp"])/(fd["totalxp"]/20)))
+  tooltip:AddLine(L["Bars Left"] .. ":", self:Round((100 - ((fd["xp"] / fd["totalxp"]) * 100)) / 5, 0))
   if (fd["xpdisabled"] == 1) then
    tooltip:AddLine(L["XPDisabled"])
   end
@@ -2191,11 +2229,16 @@ function FriendXP:HookBlizzPartyFrames()
    partyXP.text:SetFont(LSM:Fetch("font", "Friz Quadrata TT"), 10)
    partyXP.text:SetAllPoints(true)
 
+   partyXP.lastUpdate = 0
+
    --partyXP.frame:SetFrameLevel(partyXP.xpbar:GetFrameLevel() - 1)
    --partyXP.frame:Hide()
 
    partyXPFrames[i] = partyXP
-   partyXPFrames[i]:SetScript("OnUpdate", function(self)
+   partyXPFrames[i]:SetScript("OnUpdate", function(self, elapsed)
+   	   self.lastUpdate = self.lastUpdate + elapsed
+   	   if (self.lastUpdate < 2) then return end
+   	   self.lastUpdate = 0
    	   if (FriendXP.db.profile.integrateParty == false ) then self:Hide() return end
    	   local xp, total, percent, restbonus = FriendXP:GetXPByUnit("party" .. i)
    	   if (xp ~= nil) then
@@ -2207,11 +2250,11 @@ function FriendXP:HookBlizzPartyFrames()
    	    self.xpbar:SetMinMaxValues(0, total)
    	    self.xpbar:SetValue(xp)
    	    self.text:SetText(percent .. "%")
-		self.xpbar:SetAlpha(1)
+	    self.xpbar:SetAlpha(1)
    	   else
    	    self.xpbar:SetValue(0)
    	    self.text:SetText("N/A") -- Probably should just hide frame instead (But can't process OnUpdate then)
-		self.xpbar:SetAlpha(0)
+	    self.xpbar:SetAlpha(0)
    	   end
    	  end)
 
