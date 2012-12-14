@@ -5,12 +5,15 @@ local LSM = LibStub("LibSharedMedia-3.0")
 --local LDB = LibStub:GetLibrary("LibDataBroker-1.1",true)
 local LQT = LibStub("LibQTip-1.0")
 
+FriendXP.LSM = LSM
+
 LSM:Register("background", "Wireless Icon", "Interface\\Addons\\FriendXP\\Artwork\\wlan_wizard.tga")
 LSM:Register("background", "Wireless Icon2", "Interface\\Addons\\FriendXP\\Artwork\\wlan_wizard2.tga")
 LSM:Register("background", "Wireless Incoming", "Interface\\Addons\\FriendXP\\Artwork\\wlan_incoming.tga")
 LSM:Register("background", "PartyXPBar", "Interface\\Addons\\FriendXP\\Artwork\\partyxpbar.tga")
 LSM:Register("border", "Thin Square 1px", "Interface\\Addons\\FriendXP\\Artwork\\Square 1px.tga")
 LSM:Register("border", "Thin Square 2px", "Interface\\Addons\\FriendXP\\Artwork\\Square 2px.tga")
+LSM:Register("background", "CircleXP", "Interface\\Addons\\FriendXP\\Artwork\\circlexp.tga")
 
 local newFriends = { }; -- Needs renaming
 local fonts = { };
@@ -411,7 +414,7 @@ local function giveOptions(self)
     },
    },
   },
-  miniframe = {
+  miniframe = { -- Miniframe BEGIN
    name = "Miniframe",
    type = "group",
    order = 2,
@@ -865,8 +868,124 @@ local function giveOptions(self)
     },
    },
   },
+  pf = { -- PlayerFrame BEGIN
+   name = "Player XP Frame",
+   order = 4.1,
+   type = "group",
+   args = {
+    enabled = {
+     name = L["Enabled"],
+     order = 1,
+     type = "toggle",
+     set = function(i, v) self.db.profile.pf.enabled = v; self:SendXP() end,
+     get = function(i) return self.db.profile.pf.enabled end,
+    },
+    tooltip = {
+     name = "Tooltip",
+     type = "toggle",
+     get = function(i) return self.db.profile.pf.tooltip end,
+     set = function(i, v) self.db.profile.pf.tooltip = v end,
+    },
+    formatstring = {
+     name = "Format String",
+     order = 2,
+     type = "input",
+     width = "double",
+     get = function(i) return self.db.profile.pf.formatstring end,
+     set = function(i, v) self.db.profile.pf.formatstring = v; self:SendXP() end,
+    },
+    texture = {
+     name = "Bar Texture",
+     desc = "Texture of the experience bar",
+     order = 3,
+     type = "select",
+     values = LSM:HashTable("statusbar"),
+     dialogControl = "LSM30_Statusbar",
+     get = function(i) return self.db.profile.pf.texture end,
+     set = function(i, v) self.db.profile.pf.texture = v; self:UpdateSettings() end,
+    },
+	--[[alpha = {
+	 name = "Alpha",
+	 desc = "Alpha of the experience bar",
+	 order = 3.1,
+	 type = "range",
+	 min = 0, max = 1, inc = 0.1,
+	 get = function(i) return self.db.profile.pf.alpha end,
+	 set = function(i, v) self.db.profile.pf.alpha = v; self:UpdateSettings() end,
+	}, ]]--
+    color = {
+     name = "Experience bar color",
+     desc = "Color of the experience bar",
+     order = 2.2,
+     type = "color",
+     hasAlpha = false,
+     get = function(info) return self.db.profile.pf.color.r, self.db.profile.pf.color.g, self.db.profile.pf.color.b end,
+     set = function(info, r, g, b) self.db.profile.pf.color.r = r; self.db.profile.pf.color.g = g; self.db.profile.pf.color.b = b; self:UpdateSettings() end,
+    },
+    bgcolor = {
+     name = "Experience bar background color",
+     desc = "Color of the background bar",
+     order = 2.3,
+     type = "color",
+     hasAlpha = true,
+     get = function(info) return self.db.profile.pf.bgcolor.r, self.db.profile.pf.bgcolor.g, self.db.profile.pf.bgcolor.b, self.db.profile.pf.bgcolor.a end,
+     set = function(info, r, g, b, a) self.db.profile.pf.bgcolor.r = r; self.db.profile.pf.bgcolor.g = g; self.db.profile.pf.bgcolor.b = b; self.db.profile.pf.bgcolor.a = a; self:UpdateSettings() end,
+    },
+    restcolor = {
+     name = "Rest bar color",
+     desc = "Color of the rest bonus bar",
+     order = 2.4,
+     type = "color",
+     hasAlpha = false,
+     get = function(info) return self.db.profile.pf.rest.r, self.db.profile.pf.rest.g, self.db.profile.pf.rest.b end,
+     set = function(info, r, g, b) self.db.profile.pf.rest.r = r; self.db.profile.pf.rest.g = g; self.db.profile.pf.rest.b = b; self:UpdateSettings() end,
+    },
+   },
+  }, -- PlayerFrame END
+  partyframes = { -- PartyFrames BEGIN
+   name = "Party XP Frames",
+   order = 4.2,
+   type = "group",
+   args = {
+    tooltip = {
+     name = "Tooltip",
+     type = "toggle",
+     get = function(i) return self.db.profile.partyframes.tooltip end,
+     set = function(i, v) self.db.profile.partyframes.tooltip = v end,
+    },
+    texture = {
+     name = "Bar Texture",
+     desc = "Texture of the experience bar",
+     order = 3,
+     type = "select",
+     values = LSM:HashTable("statusbar"),
+     dialogControl = "LSM30_Statusbar",
+     get = function(i) return self.db.profile.partyframes.texture end,
+     set = function(i, v) self.db.profile.partyframes.texture = v; self:HookBlizzPartyFrames() end,
+    },
+    restcolor = {
+     name = "Rest bar color",
+     desc = "Color of the rest bonus bar",
+     order = 2.4,
+     type = "color",
+     hasAlpha = false,
+     get = function(info) return self.db.profile.partyframes.rested.r, self.db.profile.partyframes.rested.g, self.db.profile.partyframes.rested.b end,
+     set = function(info, r, g, b) self.db.profile.partyframes.rested.r = r; self.db.profile.partyframes.rested.g = g; self.db.profile.partyframes.rested.b = b; self:HookBlizzPartyFrames() end,
+    },
+    xpcolor = {
+     name = "Experience bar color",
+     desc = "Color of the experience bar",
+     order = 2.2,
+     type = "color",
+     hasAlpha = false,
+     get = function(info) return self.db.profile.partyframes.xp.r, self.db.profile.partyframes.xp.g, self.db.profile.partyframes.xp.b end,
+     set = function(info, r, g, b) self.db.profile.partyframes.xp.r = r; self.db.profile.partyframes.xp.g = g; self.db.profile.partyframes.xp.b = b; self:HookBlizzPartyFrames() end,
+    },
+   },
+  }, -- PartyFrames END
  },
 }
+
 
  options.args.profile = LibStub("AceDBOptions-3.0"):GetOptionsTable(self.db)
  return options
@@ -975,6 +1094,16 @@ function FriendXP:UpdateSettings()
   xpbar:Show()
  else
   xpbar:Hide()
+ end
+ 
+ if (self.playerxp) then
+  self.playerxp.rest:SetStatusBarTexture(LSM:Fetch("statusbar", self.db.profile.pf.texture))
+  self.playerxp.xp:SetStatusBarTexture(LSM:Fetch("statusbar", self.db.profile.pf.texture))
+  self.playerxp.rest:SetStatusBarColor(self.db.profile.pf.rest.r, self.db.profile.pf.rest.g, self.db.profile.pf.rest.b)
+  self.playerxp.xp:SetStatusBarColor(self.db.profile.pf.color.r, self.db.profile.pf.color.g, self.db.profile.pf.color.b)
+  
+  self.playerxp:SetBackdrop({bgFile = LSM:Fetch("statusbar", self.db.profile.pf.texture)})
+  self.playerxp:SetBackdropColor(self.db.profile.pf.bgcolor.r, self.db.profile.pf.bgcolor.g, self.db.profile.pf.bgcolor.b, self.db.profile.pf.bgcolor.a)
  end
 end
 
@@ -1528,6 +1657,44 @@ function FriendXP:OnInitialize()
      },
     },
    },
+   pf = {
+    enabled = false,
+    tooltip = false,
+	formatstring = "%n (%p%)",
+	texture = "Blizzard",
+	rest = {
+	 r = 0.25,
+	 g = 0.25,
+	 b = 1,
+	},
+	color = {
+	 r = 0.6,
+	 g = 0,
+	 b = 0.6,
+	},
+	bgcolor = {
+	 r = 0,
+	 g = 0,
+	 b = 0,
+	 a = 0.7,
+	},
+   },
+   partyframes = {
+    enabled = false,
+    tooltip = false,
+    formatstring = "%p%",
+    texture = "Blizzard",
+    rested = {
+     r = 0.25,
+     g = 0.25,
+     b = 1,
+    },
+    xp = {
+     r = 0.6,
+     g = 0,
+     b = 0.6,
+    },
+   },
    friends = {
    },
    tooltip = {
@@ -1798,12 +1965,16 @@ function FriendXP:SendXP()
   self:UpdateFriendXP_HELPER(player)
  end
 
+
+ self:HandlePlayerXP(xp,xptotal, restbonus)
+
  local msg = self:Serialize(player, xp, xptotal, level, restbonus, xpdisabled, class, maxlevel)
 
  if (self.db.profile.guildAll == true and IsInGuild()) then -- Send to entire guild
   self:SendCommMessage("friendxp", msg, "GUILD", friend)
  end
 
+ --[[
  if (self.db.profile.bgAll and UnitInBattleground("player")) then -- Send to battleground
   self:Debug("Sending to Battleground")
   self:SendCommMessage("friendxp", msg, "BATTLEGROUND", friend)
@@ -1812,6 +1983,22 @@ function FriendXP:SendXP()
  if (self.db.profile.partyAll and UnitInBattleground("player") == nil) then -- Send to party
   self:Debug("Sending to party")
   self:SendCommMessage("friendxp", msg, "RAID", friend)
+ end
+ ]]--
+ if (self.db.profile.partyAll) then
+  local channel = nil
+  if (IsInGroup(LE_PARTY_CATEGORY_INSTANCE)) then
+   channel = "INSTANCE_CHAT"
+  elseif (IsInRaid()) then
+   channel = "RAID"
+  elseif (IsInGroup()) then
+   channel = "PARTY"
+  end
+
+  if (channel) then
+   self:Debug("Sending to " .. channel)
+   self:SendCommMessage("friendxp", msg, channel, friend)
+  end
  end
 
  if (self.db.profile.sendAll == true) then -- Send to all friends
@@ -1866,11 +2053,12 @@ function FriendXP:OnCommReceived(a,b,c,d)
   return
  end
 
- if (c == "BATTLEGROUND" and self.db.profile.bgAll == false) then -- Only process BATTLEGROUND if Send to bg is enabled
+--[[ if (c == "BATTLEGROUND" and self.db.profile.bgAll == false) then -- Only process BATTLEGROUND if Send to bg is enabled
   return
  end
+]]--
 
- if (c == "RAID" and self.db.profile.partyAll == false) then -- Only process PARTY/RAID if send to party is enabled
+ if ((c == "RAID" or c == "PARTY" or c == "INSTANCE_CHAT") and self.db.profile.partyAll == false) then -- Only process PARTY/RAID if send to party is enabled
   return
  end
 
@@ -2125,6 +2313,46 @@ function FriendXP:MiniTooltip(frame, show, fd)
  end
 end
 
+function FriendXP:Tooltip(frame, show, unit)
+ if (show) then
+  if (InCombatLockdown() and self.db.profile.miniframe.tooltip.combatDisable) then
+   return
+  end
+
+  local name = UnitName(unit)
+  if (name == nil) then return end
+
+  local fd = self:FetchFriend(name)
+
+  if (fd == nil) then return end
+
+  local tooltip = LQT:Acquire("FriendXP", 2, "LEFT", "RIGHT")
+  self.tooltip = tooltip
+
+
+  local rested = (fd["restbonus"] / ((fd["totalxp"] / 100) * 1.5))
+  rested = self:Round(rested,1) .. "%"
+
+  tooltip:SetFont(self.fonts["class"][fd["class"]])
+  tooltip:AddLine(fd["name"])
+  tooltip:SetFont(fonts["normal"])
+  tooltip:AddLine(L["Level"] .. ":", fd["level"])
+  tooltip:AddLine(L["Experience"] .. ":", fd["xp"] .. "/" .. fd["totalxp"] .. " (" .. self:Round((fd["xp"]/fd["totalxp"])*100) .. "%)")
+  tooltip:AddLine(L["Rest Bonus"] .. ":", fd["restbonus"])
+  tooltip:AddLine(L["Rest Percent"] .. ":", rested)
+  tooltip:AddLine(L["Remaining"] .. ":", fd["totalxp"] - fd["xp"])
+  tooltip:AddLine(L["Bars Left"] .. ":", self:Round((100 - ((fd["xp"] / fd["totalxp"]) * 100)) / 5, 0))
+  if (fd["xpdisabled"] == 1) then
+   tooltip:AddLine(L["XPDisabled"])
+  end
+  tooltip:SmartAnchorTo(frame)
+  tooltip:Show()
+ else
+  LQT:Release(self.tooltip)
+  self.tooltip = nil
+ end
+end
+
 function FriendXP:ToggleLock()
  if (not self.unlocked) then
   Miniframe.move:ClearAllPoints()
@@ -2217,11 +2445,19 @@ function FriendXP:HookBlizzPartyFrames()
    partyXP.frame:SetWidth(128)
    partyXP.frame:SetPoint("TOPLEFT", _G["PartyMemberFrame" .. i], "TOPLEFT", 42, -30)
 
-   partyXP.xpbar = CreateFrame("StatusBar", nil, partyXP)
+   partyXP.restbar = CreateFrame("StatusBar", nil, partyXP)
+   partyXP.restbar:SetAllPoints(true)
+
+   partyXP.restbar:SetStatusBarTexture(LSM:Fetch("statusbar", self.db.profile.partyframes.texture))
+   partyXP.restbar:SetStatusBarColor(self.db.profile.partyframes.rested.r, self.db.profile.partyframes.rested.g, FriendXP.db.profile.partyframes.rested.b)
+   partyXP.restbar:SetMinMaxValues(0, 1000)
+   partyXP.restbar:SetValue(200)
+
+   partyXP.xpbar = CreateFrame("StatusBar", nil, partyXP.restbar)
    partyXP.xpbar:SetAllPoints(true)
 
-   partyXP.xpbar:SetStatusBarTexture(LSM:Fetch("statusbar", "Blizzard"))
-   partyXP.xpbar:SetStatusBarColor(1,0,1)
+   partyXP.xpbar:SetStatusBarTexture(LSM:Fetch("statusbar", self.db.profile.partyframes.texture))
+   partyXP.xpbar:SetStatusBarColor(self.db.profile.partyframes.xp.r, FriendXP.db.profile.partyframes.xp.g, FriendXP.db.profile.partyframes.xp.b)
    partyXP.xpbar:SetMinMaxValues(0, 1000)
    partyXP.xpbar:SetValue(200)
 
@@ -2230,6 +2466,9 @@ function FriendXP:HookBlizzPartyFrames()
    partyXP.text:SetAllPoints(true)
 
    partyXP.lastUpdate = 0
+   
+   partyXP:SetScript("OnEnter", function() if (not self.db.profile.partyframes.tooltip) then return end self:Tooltip(partyXP, true,  "party" .. i) end)
+   partyXP:SetScript("OnLeave", function() self:Tooltip(partyXP, false) end)
 
    --partyXP.frame:SetFrameLevel(partyXP.xpbar:GetFrameLevel() - 1)
    --partyXP.frame:Hide()
@@ -2243,22 +2482,31 @@ function FriendXP:HookBlizzPartyFrames()
    	   local xp, total, percent, restbonus = FriendXP:GetXPByUnit("party" .. i)
    	   if (xp ~= nil) then
             if (restbonus > 0) then
-             self.xpbar:SetStatusBarColor(0.25, 0.25, 1) -- Rested blue (I think)
-            else
-             self.xpbar:SetStatusBarColor(0.6, 0, 0.6) -- Weary Purple (I think)
+             if (restbonus + xp >= total) then
+              self.restbar:SetMinMaxValues(0, total)
+              self.restbar:SetValue(total)
+             else
+              self.restbar:SetMinMaxValues(0, total)
+              self.restbar:SetValue(xp + restbonus)
+             end
+            self.restbar:SetStatusBarColor(FriendXP.db.profile.partyframes.rested.r, FriendXP.db.profile.partyframes.rested.g, FriendXP.db.profile.partyframes.rested.b)
+          --else
+           self.xpbar:SetStatusBarColor(FriendXP.db.profile.partyframes.xp.r, FriendXP.db.profile.partyframes.xp.g, FriendXP.db.profile.partyframes.xp.b)
             end
-   	    self.xpbar:SetMinMaxValues(0, total)
-   	    self.xpbar:SetValue(xp)
-   	    self.text:SetText(percent .. "%")
-	    self.xpbar:SetAlpha(1)
-   	   else
-   	    self.xpbar:SetValue(0)
-   	    self.text:SetText("N/A") -- Probably should just hide frame instead (But can't process OnUpdate then)
-	    self.xpbar:SetAlpha(0)
-   	   end
-   	  end)
+   	     self.xpbar:SetMinMaxValues(0, total)
+   	     self.xpbar:SetValue(xp)
+   	     self.text:SetText(percent .. "%")
+	     self.xpbar:SetAlpha(1)
+   	    else
+   	     self.xpbar:SetValue(0)
+   	     self.text:SetText("N/A") -- Probably should just hide frame instead (But can't process OnUpdate then)
+	     self.xpbar:SetAlpha(0)
+   	    end
+   	   end)
 
   else
+   --partyXPFrames[i].frame:SetBackdrop({bgFile = LSM:Fetch("background", self.db.profile.partyframes.texture), tile = false, tileSize = 0, insets = { left = 0, right = 0, top = 0, bottom = 0 }})
+   partyXPFrames[i].xpbar:SetStatusBarTexture(LSM:Fetch("statusbar", self.db.profile.partyframes.texture)) -- FIXME This is probably not needed, they update every few seconds anyway
    partyXPFrames[i]:Show()
   end
  end
@@ -2279,6 +2527,55 @@ function FriendXP:GetXPByUnit(unit, formatString)
  else
   return nil
  end
+end
+
+function FriendXP:HandlePlayerXP(xp, xptotal, restbonus)
+ if (self.playerxp and not self.db.profile.pf.enabled) then PlayerName:SetText(self:GetXPByUnit("player", "%n")) self.playerxp:Hide() return end
+ if (not self.playerxp and not self.db.profile.pf.enabled) then return end
+ 
+ if (xp == nil) then xp = 0 end
+ if (xptotal == nil) then xptotal = 100 end
+ if (restbonus == nil) then restbonus = 0 end
+ 
+ if (not self.playerxp) then
+  _G["PlayerFrame"]:SetFrameLevel(_G["PlayerFrame"]:GetFrameLevel() + 1)
+  local frame = CreateFrame("Frame", nil, _G["PlayerFrame"])
+  frame:SetBackdrop({bgFile = LSM:Fetch("statusbar", "Blizzard")})
+  frame:SetBackdropColor(self.db.profile.pf.bgcolor.r, self.db.profile.pf.bgcolor.g, self.db.profile.pf.bgcolor.b, self.db.profile.pf.bgcolor.a)
+  frame:SetPoint("TOPLEFT", _G["PlayerFrame"], "TOPLEFT", 110, -24)
+  frame:SetWidth(116)
+  frame:SetHeight(16)
+  frame.rest = CreateFrame("StatusBar", nil, frame)
+  frame.rest:SetAllPoints(true)
+  frame.rest:SetStatusBarTexture(LSM:Fetch("statusbar", "Blizzard"))
+  frame.rest:SetStatusBarColor(self.db.profile.pf.rest.r, self.db.profile.pf.rest.g, self.db.profile.pf.rest.b)
+  frame.xp = CreateFrame("StatusBar", nil, frame.rest)
+  frame.xp:SetAllPoints(true)
+  frame.xp:SetStatusBarTexture(LSM:Fetch("statusbar", "Blizzard"))
+  frame.xp:SetStatusBarColor(self.db.profile.pf.color.r, self.db.profile.pf.color.g, self.db.profile.pf.color.b)
+--  frame.rest = CreateFrame("StatusBar", nil, frame)
+--  frame.rest:SetStatusBarTexture(LSM:Fetch("statusbar", "Blizzard"))
+--  frame.rest:SetAllPoints(true)
+  self.playerxp = frame
+  frame:SetFrameLevel(1)
+
+   frame.xp:SetScript("OnEnter", function() if (not self.db.profile.pf.tooltip) then return end self:Tooltip(frame, true,  "player") end)
+   frame.xp:SetScript("OnLeave", function() self:Tooltip(frame, false) end)
+ end
+ 
+ self.playerxp:Show()
+ 
+ if ((restbonus + xp) > xptotal) then restbonus = xptotal end
+ self.playerxp.rest:SetMinMaxValues(0, xptotal)
+ self.playerxp.rest:SetValue(restbonus + xp)
+ self.playerxp.xp:SetMinMaxValues(0, xptotal)
+ self.playerxp.xp:SetValue(xp)
+ 
+ PlayerName:SetText(self:GetXPByUnit("player", self.db.profile.pf.formatstring))
+ 
+ --self:Print(_G["PlayerFrame"]:GetFrameStrata())
+ --self:Print(_G["PlayerFrame"]:GetFrameLevel())
+ 
 end
 
 --[[
