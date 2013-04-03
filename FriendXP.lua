@@ -2480,7 +2480,7 @@ function FriendXP:HookBlizzPartyFrames()
    	   self.lastUpdate = 0
    	   if (FriendXP.db.profile.integrateParty == false ) then self:Hide() return end
    	   local xp, total, percent, restbonus = FriendXP:GetXPByUnit("party" .. i)
-   	   if (xp ~= nil) then
+   	   if (xp ~= nil and total ~= nil and percent ~= nil and restbonus ~= nil) then
             if (restbonus > 0) then
              if (restbonus + xp >= total) then
               self.restbar:SetMinMaxValues(0, total)
@@ -2492,7 +2492,10 @@ function FriendXP:HookBlizzPartyFrames()
             self.restbar:SetStatusBarColor(FriendXP.db.profile.partyframes.rested.r, FriendXP.db.profile.partyframes.rested.g, FriendXP.db.profile.partyframes.rested.b)
           --else
            self.xpbar:SetStatusBarColor(FriendXP.db.profile.partyframes.xp.r, FriendXP.db.profile.partyframes.xp.g, FriendXP.db.profile.partyframes.xp.b)
-            end
+            else
+			 self.restbar:SetMinMaxValues(0, 1)
+			 self.restbar:SetValue(0)
+			end
    	     self.xpbar:SetMinMaxValues(0, total)
    	     self.xpbar:SetValue(xp)
    	     self.text:SetText(percent .. "%")
@@ -2538,7 +2541,7 @@ function FriendXP:HandlePlayerXP(xp, xptotal, restbonus)
  if (restbonus == nil) then restbonus = 0 end
  
  if (not self.playerxp) then
-  _G["PlayerFrame"]:SetFrameLevel(_G["PlayerFrame"]:GetFrameLevel() + 1)
+  --_G["PlayerFrame"]:SetFrameLevel(_G["PlayerFrame"]:GetFrameLevel() + 1)
   local frame = CreateFrame("Frame", nil, _G["PlayerFrame"])
   frame:SetBackdrop({bgFile = LSM:Fetch("statusbar", "Blizzard")})
   frame:SetBackdropColor(self.db.profile.pf.bgcolor.r, self.db.profile.pf.bgcolor.g, self.db.profile.pf.bgcolor.b, self.db.profile.pf.bgcolor.a)
@@ -2557,13 +2560,26 @@ function FriendXP:HandlePlayerXP(xp, xptotal, restbonus)
 --  frame.rest:SetStatusBarTexture(LSM:Fetch("statusbar", "Blizzard"))
 --  frame.rest:SetAllPoints(true)
   self.playerxp = frame
-  frame:SetFrameLevel(1)
+  --frame:SetFrameLevel(1)
+  frame:SetFrameStrata("BACKGROUND")
+  
+   self.tooltipFrame = CreateFrame("Frame", nil, _G["PlayerFrame"])
+   self.tooltipFrame:SetPoint("TOPLEFT", _G["PlayerFrame"], "TOPLEFT", 110, -24)
+   self.tooltipFrame:SetFrameStrata("HIGH")
+   self.tooltipFrame:SetWidth(116)
+   self.tooltipFrame:SetHeight(16)
 
-   frame.xp:SetScript("OnEnter", function() if (not self.db.profile.pf.tooltip) then return end self:Tooltip(frame, true,  "player") end)
-   frame.xp:SetScript("OnLeave", function() self:Tooltip(frame, false) end)
+   self.tooltipFrame:SetScript("OnEnter", function() if (not self.db.profile.pf.tooltip) then return end self:Tooltip(frame, true,  "player") end)
+   self.tooltipFrame:SetScript("OnLeave", function() self:Tooltip(frame, false) end)
  end
  
  self.playerxp:Show()
+ 
+ if (self.db.profile.pf.tooltip) then
+  self.tooltipFrame:Show()
+ else
+  self.tooltipFrame:Hide()
+ end
  
  if ((restbonus + xp) > xptotal) then restbonus = xptotal end
  self.playerxp.rest:SetMinMaxValues(0, xptotal)
