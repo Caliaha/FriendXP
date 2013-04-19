@@ -2499,11 +2499,12 @@ function FriendXP:HookBlizzPartyFrames()
    	     self.xpbar:SetMinMaxValues(0, total)
    	     self.xpbar:SetValue(xp)
    	     self.text:SetText(percent .. "%")
-	     self.xpbar:SetAlpha(1)
+	     self:SetAlpha(1)
    	    else
    	     self.xpbar:SetValue(0)
+		 self.restbar:SetValue(0)
    	     self.text:SetText("N/A") -- Probably should just hide frame instead (But can't process OnUpdate then)
-	     self.xpbar:SetAlpha(0)
+	     self:SetAlpha(0)
    	    end
    	   end)
 
