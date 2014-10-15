@@ -1,6 +1,6 @@
-## Interface: 50400
+## Interface: 60000
 ## Title: FriendXP
-## Version: 1.16
+## Version: @project-version@
 ## Notes: Tracks friend's experience
 ## Author: Bartruby of Cairne
 ## OptionalDeps: Ace3
