@@ -1918,7 +1918,7 @@ function FriendXP:HandleIt(input)
  if (command == "send") then
   self:SendXP()
   self:UpdateMiniframe()
-  self.Print(self,"Sent experience")
+  self:Print("Sent experience")
   return
  end
 
@@ -2006,8 +2006,8 @@ function FriendXP:SendXP()
   if (numberOfFriends > 0) then
    for friendL = 1, numberOfFriends do
     local nameT, levelT, classT, areaT, connectedT, statusT, noteT = GetFriendInfo(friendL)
-    if (nameT ~= nil and connectedT ~= nil) then
-     self:SendCommMessage("friendxp", msg, "WHISPER", nameT)
+    if (nameT ~= nil and connectedT ~= false) then
+	  self:SendCommMessage("friendxp", msg, "WHISPER", nameT)
     end
    end
   end
@@ -2215,7 +2215,7 @@ end
 -- Cycles through friend list and real id friends to see if any given friend is online
 -- Maybe should just cache this information somehow
 function FriendXP:FriendCheck(realm, friend)
---[[ if (realm ~= GetRealmName()) then -- Removed for RealID
+ --[[ if (realm ~= GetRealmName()) then -- Removed for RealID
   --return false
  end ]]--
 
