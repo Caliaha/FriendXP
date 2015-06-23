@@ -2,7 +2,6 @@ FriendXP = LibStub("AceAddon-3.0"):NewAddon("FriendXP", "AceBucket-3.0", "AceCon
 
 local L = LibStub("AceLocale-3.0"):GetLocale("FriendXP")
 local LSM = LibStub("LibSharedMedia-3.0")
---local LDB = LibStub:GetLibrary("LibDataBroker-1.1",true)
 local LQT = LibStub("LibQTip-1.0")
 
 FriendXP.LSM = LSM
@@ -114,23 +113,6 @@ local function giveOptions(self)
    get = function(i) return self.db.profile.onlyFriends end,
    set = function(i, v) self.db.profile.onlyFriends = v end,
   },
- --[[ friend = {
-   name = L["AddFriend"],
-   desc = L["AddFriend_Desc"],
-   order = 4,
-   type = "input",
-   get = function(info) return "" end,
-   set = function(i, v) self:AddFriend(v); self:UpdateSettings() end,
-  },
-  friendlist = {
-   name = "List of friends to delete",
-   desc = "Select a friend to delete",
-   type = "select",
-   values = function() return self.db.profile.friends end, --Need to verify if working
-   --get = function(info) return self.db.profile.friends end,
-   set = function(i, v) self.Print("i",i,"v",v,"combined",self.db.profile.friends[v]); self:DeleteFriend(v); end,
-   style = "dropdown",
-  }, ]]
   friendttl = {
    name = L["FriendTTL"],
    desc = L["FriendTTL_Desc"],
@@ -1010,18 +992,6 @@ function FriendXP:FriendKey(mode,friend)
  end
 end
 
-function FriendXP:AddFriend(friend)
- self.Print("Adding",friend,"to table.")
- tinsert(self.db.profile.friends, self:FriendKey("get", friend))
- self.Print("Listing friends")
- table.foreach(self.db.profile.friends, self.Print)
-end
-
-function FriendXP:DeleteFriend(friend)
- self.Print("Deleting",self.db.profile.friends[friend]);
- table.remove(self.db.profile.friends, friend)
-end
-
 function FriendXP:CreateFriendXPBar() -- Should merge its update functions here aswell like SetupMiniframe
  if (xpbar) then return end
  xpbar = CreateFrame("Frame", nil, UIParent)
@@ -1147,10 +1117,8 @@ function FriendXP:UpdateFriendXP(ft) -- Friendbar
 
  if (ft["restbonus"] and ft["restbonus"] > 0) then
   xpbar.rest:SetValue(ft["xp"] + ft["restbonus"])
-  --xpbar.text:SetFormattedText("%s (%d): %d / %d (%d%%) " .. L["Remaining"] .. ": %d " .. L["Rested"] .. ": %d %s", friend, level, xp, totalxp, self:Round((xp/totalxp)*100), (totalxp - xp), restbonus, isDisabled)
  else
   xpbar.rest:SetValue(0)
-  --xpbar.text:SetFormattedText("%s (%d): %d / %d (%d%%) Remaining: %d %s", friend, level, xp, totalxp, self:Round((xp/totalxp)*100), (totalxp - xp), isDisabled)
  end
  xpbar.text:SetText(self:FormatString(self.db.profile.friendbar.formatstring, ft))
 end
@@ -1695,8 +1663,6 @@ function FriendXP:OnInitialize()
      b = 0.6,
     },
    },
-   friends = {
-   },
    tooltip = {
     header = {
      font = "Friz Quadrata TT",
@@ -1860,20 +1826,9 @@ function FriendXP:WorldEnter()
 end
 
 function FriendXP:HandleIt(input)
- if not input then
-  --self.Print(self,"Needs more cowbell.")
-  return
- end
+ if not input then return end
 
  local command, nextposition = self:GetArgs(input,1,1)
-
- if (command == "add") then
-  local friend = self:GetArgs(input,2,nextposition)
-  if (friend == nil) then
-   return
-  end
-  return
- end
 
  if (command == "active") then
   for i,v in ipairs(activeFriends) do
@@ -1971,20 +1926,9 @@ function FriendXP:SendXP()
  local msg = self:Serialize(player, xp, xptotal, level, restbonus, xpdisabled, class, maxlevel)
 
  if (self.db.profile.guildAll == true and IsInGuild()) then -- Send to entire guild
-  self:SendCommMessage("friendxp", msg, "GUILD", friend)
+  self:Debug("Sending xp to GUILD")
+  self:SendCommMessage("friendxp", msg, "GUILD")
  end
-
- --[[
- if (self.db.profile.bgAll and UnitInBattleground("player")) then -- Send to battleground
-  self:Debug("Sending to Battleground")
-  self:SendCommMessage("friendxp", msg, "BATTLEGROUND", friend)
- end
-
- if (self.db.profile.partyAll and UnitInBattleground("player") == nil) then -- Send to party
-  self:Debug("Sending to party")
-  self:SendCommMessage("friendxp", msg, "RAID", friend)
- end
- ]]--
  if (self.db.profile.partyAll) then
   local channel = nil
   if (IsInGroup(LE_PARTY_CATEGORY_INSTANCE)) then
@@ -2001,25 +1945,25 @@ function FriendXP:SendXP()
   end
  end
 
- if (self.db.profile.sendAll == true) then -- Send to all friends
+ if (self.db.profile.sendAll == true) then -- Send to all friends, works fine with Friend-RealmName
   local numberOfFriends, onlineFriends = GetNumFriends() -- Normal friends first
   if (numberOfFriends > 0) then
    for friendL = 1, numberOfFriends do
-    local nameT, levelT, classT, areaT, connectedT, statusT, noteT = GetFriendInfo(friendL)
-    if (nameT ~= nil and connectedT ~= false) then
+    local nameT, _, _, _, connectedT, _, _ = GetFriendInfo(friendL)
+    if (nameT ~= nil and connectedT) then
+	  self:Debug("Sending whisper to" .. nameT)
 	  self:SendCommMessage("friendxp", msg, "WHISPER", nameT)
     end
    end
   end
 
-  local numberOfBFriends, BonlineFriends = BNGetNumFriends() -- Then do RealID Friends
+  local numberOfBFriends, BonlineFriends = BNGetNumFriends() -- Then do RealID/BattleTag Friends, doesn't work with connected realms
   if (numberOfBFriends > 0) then
    for Bfriend = 1, numberOfBFriends do
     local presenceID, presenceName, battleTag, isBattleTagPresence, toonName, toonID, client, isOnline, lastOnline, isAFK, isDND, messageText, noteText, isRIDFriend, messageTime, canSoR  = BNGetFriendInfo(Bfriend)
-    self:Debug("Sending to BNet " .. presenceName)
+    self:Debug("Processing BattleNet: " .. presenceName)
     self:Debug(toonName)
     if (toonID ~= nil and isOnline == true) then
-
      if (CanCooperateWithToon(toonID) or UnitInParty(toonName)) then
       self:Debug("Sent")
       local _, _, _, realmName, _, _, _, _, _, _, _ = BNGetToonInfo(toonID)
@@ -2031,14 +1975,7 @@ function FriendXP:SendXP()
    end
   end
 
-  return -- Don't need to bother sending to individual friends
- end
-
- for i, v in ipairs(self.db.profile.friends) do -- Loop through all friends
-  local realm, friend = self:FriendKey("splode",v)
-  if ((self.db.profile.checkOnline == true and self:FriendCheck(realm,friend)) or self.db.profile.checkOnline == false) then -- Whisper it to friend if online
-   self:SendCommMessage("friendxp", msg, "WHISPER", friend)
-  end
+  return
  end
 end
 
@@ -2066,34 +2003,6 @@ function FriendXP:OnCommReceived(a,b,c,d)
   return
  end
 
--- the format should be-> playername:xp:xptotal:level:restbonus:xpdisabled:class
-
---[[
- local mid = string.find(b, ":", 1, true)
- if (mid == nil) then
-  return
- end
- local mid2 = string.find(b, ":", mid + 1, true)
- local mid3 = string.find(b, ":", mid2 + 1, true)
- local mid4 = string.find(b, ":", mid3 + 1, true)
- local mid5 = string.find(b, ":", mid4 + 1, true)
- local mid6 = string.find(b, ":", mid5 + 1, true)
- local mid7 = string.find(b, ":", mid6 + 1, true)
-
- local name = string.sub(b,  1, mid - 1)
- local xp = string.sub(b, mid + 1, mid2 - 1)
- local xptotal = string.sub(b, mid2 + 1, mid3 - 1)
- local level = string.sub(b, mid3 + 1, mid4 - 1)
- local restbonus = string.sub(b, mid4 + 1, mid5 - 1)
- local xpdisabled = string.sub(b, mid5 + 1, mid6 - 1)
- local class = string.sub(b, mid6 + 1, -1)
- local maxlevel = 85 -- Just a default incase sender is using old version
-
- if (mid7 ~= nil) then
-  class = string.sub(b, mid6 +1, mid7 - 1)
-  maxlevel = string.sub(b, mid7 +1, -1)
- end
- ]]--
  local success, name, xp, xptotal, level, restbonus, xpdisabled, class, maxlevel = self:Deserialize(b)
  if (not success) then
   self:Debug("Couldn't not deserialize message " .. name)
@@ -2125,7 +2034,7 @@ function FriendXP:OnCommReceived(a,b,c,d)
   end
  end
 
- if (not self:FriendCheck(GetRealmName(), name) and self.db.profile.onlyFriends) then
+ if (self.db.profile.onlyFriends and not self:FriendCheck(GetRealmName(), name)) then
   self:Debug("not processing " .. name .. ", because onlyFriends")
   return
  end
@@ -2141,20 +2050,8 @@ function FriendXP:OnCommReceived(a,b,c,d)
   if (self.db.profile.miniframe.enabled and self.db.profile.miniframe.incoming.enabled) then -- Only flash on valid updates
    Miniframe.incoming:Show()
   end
-  --self:UpdateFriendXP(name, tonumber(level), tonumber(xp), tonumber(xptotal), tonumber(restbonus), tonumber(xpdisabled))
   if self.db.profile.debug then self.Print(self,"UpdateFriendXP",name,level,xp,xptotal,restbonus,xpdisabled) end
---[[  friendTable = {
-   ["name"] = name,
-   ["xp"] = tonumber(xp),
-   ["totalxp"] = tonumber(xptotal),
-   ["level"] = tonumber(level),
-   ["restbonus"] = tonumber(restbonus),
-   ["xpdisabled"] = tonumber(xpdisabled),
-   ["class"] = class,
-   ["lastTime"] = GetTime(),
-  }
-  self:UpdateFriendXP(friendTable)
-  ]]--
+
   if (self.db.profile.doLevelUp) then
    local previousLevel = self:GetLevelByPlayer(name)
    if (previousLevel ~= nil and previousLevel < tonumber(level)) then
@@ -2215,10 +2112,6 @@ end
 -- Cycles through friend list and real id friends to see if any given friend is online
 -- Maybe should just cache this information somehow
 function FriendXP:FriendCheck(realm, friend)
- --[[ if (realm ~= GetRealmName()) then -- Removed for RealID
-  --return false
- end ]]--
-
  local numberOfFriends, onlineFriends = GetNumFriends()
  local numberOfBFriends, BonlineFriends = BNGetNumFriends()
  if (onlineFriends > 0) then
@@ -2412,12 +2305,6 @@ function FriendXP:DragStop(frame, button, name)
   self.db.profile[name].x = self:Round(frame:GetLeft(), 0)
   self.db.profile[name].y = -maxheight + self:Round(frame:GetTop(), 0)
 
- -- self:Print(self.db.profile[name].x, self.db.profile[name].y)
- -- local point, relativeTo, relativePoint, xOfs, yOfs = frame:GetPoint()
- -- self:Print(point, relativeTo, relativePoint, xOfs, yOfs)
---  self:Print(self.db.profile.miniframe.x, self.db.profile.miniframe.y)
- -- self:Print(frame:GetLeft(), frame:GetBottom())
- -- self:Print(frame:GetRight(), frame:GetTop())
   frame:StopMovingOrSizing()
 
  end
@@ -2589,20 +2476,4 @@ function FriendXP:HandlePlayerXP(xp, xptotal, restbonus)
  self.playerxp.xp:SetValue(xp)
  
  PlayerName:SetText(self:GetXPByUnit("player", self.db.profile.pf.formatstring))
- 
- --self:Print(_G["PlayerFrame"]:GetFrameStrata())
- --self:Print(_G["PlayerFrame"]:GetFrameLevel())
- 
 end
-
---[[
-function FriendXP:SplitName(toon) -- Breaks name into name, realm
- local mid = string.find(toon, " ", 1, true)
- if (mid == nil) then return toon end
-
- local name = string.sub(toon, 1, mid - 1)
- local realm = string.sub(toon, mid + 1, -1)
-
- return name, realm
-end
-]]--
