@@ -1963,8 +1963,8 @@ function FriendXP:SendXP()
     local presenceID, presenceName, battleTag, isBattleTagPresence, toonName, toonID, client, isOnline, lastOnline, isAFK, isDND, messageText, noteText, isRIDFriend, messageTime, canSoR  = BNGetFriendInfo(Bfriend)
     self:Debug("Processing BattleNet: " .. presenceName)
     self:Debug(toonName)
-    if (toonID ~= nil and isOnline == true) then
-     if (CanCooperateWithToon(toonID) or UnitInParty(toonName)) then
+    if (toonID ~= nil and isOnline == true and presenceID ~= nil) then
+     if (CanCooperateWithGameAccount(presenceID) or UnitInParty(toonName)) then
       self:Debug("Sent")
       local _, _, _, realmName, _, _, _, _, _, _, _ = BNGetToonInfo(toonID)
       if (realmName == GetRealmName()) then
@@ -2125,7 +2125,7 @@ function FriendXP:FriendCheck(realm, friend)
  if (BonlineFriends > 0) then
   for Bfriend = 1,BonlineFriends do
   local presenceID, presenceName, battleTag, isBattleTagPresence, toonName, toonID, client, isOnline, lastOnline, isAFK, isDND, messageText, noteText, isRIDFriend, messageTime, canSoR  = BNGetFriendInfo(Bfriend)
-   if (CanCooperateWithToon(toonID) or UnitInParty(toonName)) then
+   if (CanCooperateWithGameAccount(presenceID) or UnitInParty(toonName)) then
     if (toonName == friend) then
      return true
     end
