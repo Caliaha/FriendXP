@@ -2018,7 +2018,7 @@ function FriendXP:OnCommReceived(a,b,c,d)
  -- Make sure player is only sending their info
  -- add cross realm support to tell between Player and Player-Realm
  if (strupper(name) ~= strupper(d)) then
-  --self:Print(name,d) -- FIXME
+  --self:Print(name,d)
   local Tmid = string.find(d, "-", 1, true)
   if (Tmid) then
    self:Debug("Tmid " .. Tmid)
