@@ -632,8 +632,8 @@ local function giveOptions(self)
 	 order = 5.84,
 	 type = "color",
 	 hasAlpha = false,
-	 get = function(i) local x = db.miniframe.xp.color; return x.r, x.g, x.b end,
-	 set = function(i, r, g, b) local x = db.miniframe.xp.color; x.r = r; x.g = g; x.b = b; self:UpdateMiniframe() end
+	 get = function(i) return self.db.profile.miniframe.xp.color.r, self.db.profile.miniframe.xp.color.g, self.db.profile.miniframe.xp.color.b end,
+	 set = function(i, r, g, b) self.db.profile.miniframe.xp.color.r = r; self.db.profile.miniframe.xp.color.g = g; self.db.profile.miniframe.xp.color.b = b; self:UpdateMiniframe() end
 	},
     face = {
      name = L["Font Face"],
@@ -2095,7 +2095,8 @@ end
 
 function FriendXP:DoLevelUp(friend, level)
  UIErrorsFrame:AddMessage(friend .. " has reached level " .. level .. "!", 1.0, 1.0, 0.0, 1, 5)
- PlaySoundFile("Sound\\interface\\LevelUp.wav")
+ --PlaySoundFile("Sound\\interface\\LevelUp.wav")
+ PlaySoundKitID(888) -- Level up sound
  return
 end
 
