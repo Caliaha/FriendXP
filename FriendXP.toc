@@ -1,4 +1,4 @@
-## Interface: 70000
+## Interface: 70100
 ## Title: FriendXP
 ## Version: @project-version@
 ## Notes: Tracks friend's experience
@@ -25,8 +25,8 @@ libs\AceSerializer-3.0\AceSerializer-3.0.xml
 libs\LibSharedMedia-3.0\lib.xml
 libs\LibQTip-1.0\lib.xml
 libs\AceGUI-3.0-SharedMediaWidgets\widget.xml
-libs\LibDataBroker-1.1\LibDataBroker-1.1.lua
 #@end-no-lib-strip@
+libs\LibDataBroker-1.1\LibDataBroker-1.1.lua
 
 Locales\Locales.xml
 

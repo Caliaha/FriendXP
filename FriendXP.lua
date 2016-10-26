@@ -405,9 +405,16 @@ local function giveOptions(self)
      name = "Enable Miniframe",
      order = 1,
      type = "toggle",
-     set = function(i, v) self.db.profile.miniframe.enabled = v; self:SetupMiniframe() end,
+     set = function(i, v) self.db.profile.miniframe.enabled = v; self:SetupMiniframe() self:UpdateMiniframe() end,
      get = function(i) return self.db.profile.miniframe.enabled end,
     },
+	ignoremaxlevel = {
+	 name = "Ignore Max Level",
+	 order = 1.1,
+	 type = "toggle",
+	 set = function(i, v) self.db.profile.miniframe.ignoremaxlevel = v; self:RecycleAllFrames() self:UpdateMiniframe() end,
+	 get = function(i) return self.db.profile.miniframe.ignoremaxlevel end,
+	},
     friendlimitheader = {
      name = L["Size Limits"],
      order = 2,
@@ -420,7 +427,7 @@ local function giveOptions(self)
      order = 2.1,
      type = "input",
      get = function(i) return tostring(self.db.profile.miniframe.friendlimit) end,
-     set = function(i, v) self.db.profile.miniframe.friendlimit = tonumber(v); self:UpdateMiniframe() end,
+     set = function(i, v) v = tonumber(v); if (v < 1) then v = 1 end self.db.profile.miniframe.friendlimit = tonumber(v); self:RecycleAllFrames() self:UpdateMiniframe() end,
     },
     columnlimit = {
      name = "Column Limit",
@@ -1198,7 +1205,6 @@ function FriendXP:SetupMiniframe()
   Miniframe.move:SetBackdropColor(1,0,0,0.75)
   Miniframe.move:SetAllPoints(Miniframe)
   Miniframe.move:Hide()
-
  end
 
  if (self.db.profile.miniframe.enabled == true and self.db.profile.enabled) then
@@ -1228,7 +1234,6 @@ function FriendXP:SetupMiniframe()
  Miniframe:SetBackdrop({bgFile = LSM:Fetch("background", self.db.profile.miniframe.texture), edgeFile = LSM:Fetch("border", self.db.profile.miniframe.border.border), tile = false, tileSize = 0, edgeSize = self.db.profile.miniframe.border.bordersize, insets = { left = self.db.profile.miniframe.border.inset.left, right = self.db.profile.miniframe.border.inset.right, top = self.db.profile.miniframe.border.inset.top, bottom = self.db.profile.miniframe.border.inset.bottom }})
  Miniframe:SetBackdropColor(self.db.profile.miniframe.bgcolor.r, self.db.profile.miniframe.bgcolor.g, self.db.profile.miniframe.bgcolor.b, self.db.profile.miniframe.bgcolor.a)
  Miniframe:SetBackdropBorderColor(self.db.profile.miniframe.border.color.r, self.db.profile.miniframe.border.color.g, self.db.profile.miniframe.border.color.b, self.db.profile.miniframe.border.color.a)
-
 end
 
 local miniframes = { } -- Holds frame refs
@@ -1239,34 +1244,41 @@ function FriendXP:UpdateMiniframe()
   Miniframe:Show()
  else
   Miniframe:Hide()
+  self:RecycleAllFrames()
+  return
  end
 
  local b = 0 -- Column Counter
- local x = 0 -- Counter for frame position in column goes 1 to columnlimit, then increments b and resets to 0
+ local x = 0 -- Counter for frame position in column goes 0 to columnlimit - 1, then increments b and resets to 0
  local y = 0 -- A counter for each frame
 
  local player = UnitName("player")
 
  self:RemoveOutdated_NEW()
  --self:RecycleAllFrames()
-
- if (newFriends[player] ~= nil) then -- Ensure that the player is always the first
+ 
+ local MAXLEVEL = GetMaxPlayerLevel() -- Maybe move somewhere else, doesn't need to be called often
+ 
+ if (newFriends[player] ~= nil and not (self.db.profile.miniframe.ignoremaxlevel and newFriends[player]["level"] == MAXLEVEL)) then -- Ensure that the player is always the first
   self:CreateMinibar(newFriends[player], b, y, x)
+  x = x + 1
+  y = y + 1
  else
   self:Debug("PLAYER DATA WAS NIL")
  end
 
  for key, value in pairs(newFriends) do
   local ft = newFriends[key]
+  if (not (self.db.profile.miniframe.ignoremaxlevel and ft["level"] == MAXLEVEL) and y < self.db.profile.miniframe.friendlimit) then 
   if (ft["name"] ~= player) then -- Ignore player
-   y = y + 1; -- Replacement for x's original function
-   if (x >= self.db.profile.miniframe.columnlimit - 1) then
+   if (x >= self.db.profile.miniframe.columnlimit) then
     x = 0;
     b = b + 1;
-   else
-    x = x + 1;
    end
+   
    self:CreateMinibar(ft, b, y, x)
+   x = x + 1
+   y = y + 1
   end
  end
 
@@ -1277,7 +1289,7 @@ function FriendXP:UpdateMiniframe()
    -- Buffer around top and bottom in the form off xp.offset.y
    -- the +2 at the end is just for a little more wiggle room
    -- added the + height at the beginning to account for the button
-   Miniframe:SetHeight((self.db.profile.miniframe.xp.offsety * 2) + ((self.db.profile.miniframe.xp.height + 2) * (x + 1)) + 2)
+   Miniframe:SetHeight((self.db.profile.miniframe.xp.offsety * 2) + ((self.db.profile.miniframe.xp.height + 2) * x) + 2)
    Miniframe:SetWidth(self.db.profile.miniframe.xp.height + self.db.profile.miniframe.xp.width + (self.db.profile.miniframe.xp.offsetx * 2))
    --Miniframe:Show()
   else
@@ -1285,10 +1297,15 @@ function FriendXP:UpdateMiniframe()
    Miniframe:SetWidth((self.db.profile.miniframe.xp.height*(b+1)) + (self.db.profile.miniframe.xp.width * (b + 1)) + (self.db.profile.miniframe.xp.offsetx * 2) + (4 * b))
    --Miniframe:Show()
   end
+  end
+  if (y == 0) then -- Player and friends are all max level and set to be hidden, don't show miniframe FIX ME
+   Miniframe:Hide()
+  end
 end
 
 function FriendXP:CreateMinibar(ft, b, y, x) -- This whole function needs work
  if (ft == nil) then return end -- FIXME
+ --self:Print("Creating minibar: ", b, y, x)
 
  local db = self.db.profile.miniframe -- Shorten some repetitive stuff
 
@@ -1313,7 +1330,7 @@ function FriendXP:CreateMinibar(ft, b, y, x) -- This whole function needs work
   frame.xp:SetValue(ft["xp"])
  end
  if (db.rest.enabled) then
-     if (ft["restbonus"] + ft["xp"] > ft["totalxp"]) then
+  if (ft["restbonus"] + ft["xp"] > ft["totalxp"]) then
    frame:SetValue(ft["totalxp"])
   else
    frame:SetValue(ft["restbonus"] + ft["xp"])
@@ -1414,7 +1431,7 @@ function FriendXP:GetCreateXPBar(key)
    frame.button = CreateFrame("Button", nil, frame.buttonbg)
    frame.button:RegisterForClicks("AnyDown")
    frame.button:ClearAllPoints()
-   frame.button:SetAllPoints(frame.buttonbg)
+   frame.button:SetAllPoints(true)
    miniframes[key] = frame;
    return miniframes[key]
   end
@@ -1541,6 +1558,7 @@ function FriendXP:OnInitialize()
      enabled = true,
      combatDisable = true,
     },
+	ignoremaxlevel = false,
     formatstring = "%l: %n",
     enabled = true,
     framelevel = 1,
@@ -2112,12 +2130,15 @@ end
 
 -- Cycles through friend list and real id friends to see if any given friend is online
 -- Maybe should just cache this information somehow
+-- Doesn't support connected realms and I don't intend to fix it
 function FriendXP:FriendCheck(realm, friend)
  local numberOfFriends, onlineFriends = GetNumFriends()
  local numberOfBFriends, BonlineFriends = BNGetNumFriends()
  if (onlineFriends > 0) then
-  for i = 1,onlineFriends do
+  for i = 1, onlineFriends do
    local name, level, class, area, connected, status, note = GetFriendInfo(i)
+   self:Print("FriendINFO: ", name, level, class, area, connected, status, note)
+   self:Print(realm, friend)
    if (name == friend and realm == GetRealmName()) then
     return true
    end
@@ -2126,7 +2147,7 @@ function FriendXP:FriendCheck(realm, friend)
  if (BonlineFriends > 0) then
   for Bfriend = 1,BonlineFriends do
   local presenceID, presenceName, battleTag, isBattleTagPresence, toonName, toonID, client, isOnline, lastOnline, isAFK, isDND, messageText, noteText, isRIDFriend, messageTime, canSoR  = BNGetFriendInfo(Bfriend)
-   if (CanCooperateWithGame(presenceID) or UnitInParty(toonName)) then
+   if (CanCooperateWithGameAccount(presenceID) or UnitInParty(toonName)) then
     if (toonName == friend) then
      return true
     end
@@ -2422,7 +2443,7 @@ function FriendXP:GetXPByUnit(unit, formatString)
 end
 
 function FriendXP:HandlePlayerXP(xp, xptotal, restbonus)
- if (self.playerxp and not self.db.profile.pf.enabled) then PlayerName:SetText(self:GetXPByUnit("player", "%n")) self.playerxp:Hide() return end
+ if (self.playerxp and not self.db.profile.pf.enabled) then PlayerName:SetText(self:GetXPByUnit("player", "%n")) self.playerxp:Hide() return end -- Probably replace with UnitName
  if (not self.playerxp and not self.db.profile.pf.enabled) then return end
  
  if (xp == nil) then xp = 0 end
