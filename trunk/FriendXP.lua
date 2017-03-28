@@ -14,7 +14,7 @@ LSM:Register("border", "Thin Square 1px", "Interface\\Addons\\FriendXP\\Artwork\
 LSM:Register("border", "Thin Square 2px", "Interface\\Addons\\FriendXP\\Artwork\\Square 2px.tga")
 LSM:Register("background", "CircleXP", "Interface\\Addons\\FriendXP\\Artwork\\circlexp.tga")
 
-local newFriends = { }; -- Needs renaming
+local friends = { }; -- Needs renaming
 local fonts = { };
 
 local Miniframes = { };
@@ -1086,8 +1086,8 @@ end
 
 -- Returns friend table, really need to redo the activeFriends table to avoid all this looping (DONE)
 function FriendXP:FetchFriend(friend)
- if (newFriends[friend]) then
-  return newFriends[friend]
+ if (friends[friend]) then
+  return friends[friend]
  end
 end
 
@@ -1238,7 +1238,7 @@ end
 
 local miniframes = { } -- Holds frame refs
 function FriendXP:UpdateMiniframe()
- if (Miniframe == nil) then self:Debug("MINIFRAME UNDEFINED") return end
+ if (not Miniframe) then self:Debug("MINIFRAME UNDEFINED") return end
 
  if (self.db.profile.miniframe.enabled and self.db.profile.enabled) then
   Miniframe:Show()
@@ -1254,33 +1254,40 @@ function FriendXP:UpdateMiniframe()
 
  local player = UnitName("player")
 
- self:RemoveOutdated_NEW()
+ self:RemoveOutdated()
  --self:RecycleAllFrames()
  
  local MAXLEVEL = GetMaxPlayerLevel() -- Maybe move somewhere else, doesn't need to be called often
  
- if (newFriends[player] ~= nil and not (self.db.profile.miniframe.ignoremaxlevel and newFriends[player]["level"] == MAXLEVEL)) then -- Ensure that the player is always the first
-  self:CreateMinibar(newFriends[player], b, y, x)
+ if (friends[player] ~= nil and not (self.db.profile.miniframe.ignoremaxlevel and friends[player]["level"] == MAXLEVEL)) then -- Ensure that the player is always the first
+  self:CreateMinibar(friends[player], b, y, x)
   x = x + 1
   y = y + 1
  else
-  self:Debug("PLAYER DATA WAS NIL")
+  self:Debug("PLAYER DATA WAS NIL or max level")
  end
 
- for key, value in pairs(newFriends) do
-  local ft = newFriends[key]
+ for key, value in pairs(friends) do
+  local ft = friends[key]
+  -- GetLevelByPlayer(name) Add code so that if player was one level below and recently leveled, we will show them for a bit and then remove them
+  -- right now when going from 109 to 110, friend is then ignored and left at 109 until removed due to inactivity
+  -- allowing it to go to 110, even briefly, will cause it to be removed properly instead of hanging around
   if (not (self.db.profile.miniframe.ignoremaxlevel and ft["level"] == MAXLEVEL) and y < self.db.profile.miniframe.friendlimit) then 
-  if (ft["name"] ~= player) then -- Ignore player
-   if (x >= self.db.profile.miniframe.columnlimit) then
-    x = 0;
-    b = b + 1;
-   end
+   if (ft["name"] ~= player) then -- Ignore player
+    if (x >= self.db.profile.miniframe.columnlimit) then
+     x = 0;
+     b = b + 1;
+    end
    
-   self:CreateMinibar(ft, b, y, x)
-   x = x + 1
-   y = y + 1
+    self:CreateMinibar(ft, b, y, x)
+    x = x + 1
+    y = y + 1
+   end
+  else
+   self:Debug("Removing max level from miniframe")
+   --self:RemoveFromActive(key) Probably don't need to remove from friends table, might as well show in ldb
+   self:RecycleFrame(key)
   end
- end
 
   -- Needs more work
   if (b == 0) then
@@ -1304,13 +1311,13 @@ function FriendXP:UpdateMiniframe()
 end
 
 function FriendXP:CreateMinibar(ft, b, y, x) -- This whole function needs work
- if (ft == nil) then return end -- FIXME
+ if (not ft) then return end -- FIXME
  --self:Print("Creating minibar: ", b, y, x)
 
  local db = self.db.profile.miniframe -- Shorten some repetitive stuff
 
  local class = strupper(ft["class"]);
- if (class == nil) then
+ if (not class) then
   class = "MAGE";
  end
  --["name"],ft["level"],ft["xp"] .. "/" .. ft["totalxp"],ft["restbonus"],)
@@ -1388,26 +1395,16 @@ function FriendXP:CreateMinibar(ft, b, y, x) -- This whole function needs work
  frame.button:SetBackdrop({bgFile = buttonBg, tile = false, tileSize = 0, edgeSize = db.border.bordersize, insets = { left = 0, right = 0, top = 0, bottom = 0 }})
 end
 
-function FriendXP:RemoveOutdated_NEW()
- for key, value in pairs(newFriends) do
+function FriendXP:RemoveOutdated()
+ for key, value in pairs(friends) do
   if (key ~= UnitName("player")) then
-   if (newFriends[key]["lastTime"] < GetTime() - self.db.profile.miniframe.threshold) then
+   if (friends[key]["lastTime"] < GetTime() - self.db.profile.miniframe.threshold) then
     self:RemoveFromActive(key)
     self:RecycleFrame(key)
    end
   end
  end
 end
-
---[[
-function FriendXP:RemoveOutdated()
- for key, value in pairs(newFriends) do
-  if (value["lastTime"] < GetTime() - self.db.profile.miniframe.threshold) then
-   self:RemoveFromActive(value["name"])
-  end
- end
-end
-]]--
 
 function FriendXP:GetCreateXPBar(key)
  if (miniframes[key] ~= nil) then
@@ -1920,7 +1917,7 @@ function FriendXP:SendXP()
  local level = UnitLevel("player");
  local _, class = UnitClass("player");
  local maxlevel = MAX_PLAYER_LEVEL_TABLE[GetExpansionLevel()]
- newFriends[player] = {
+ friends[player] = {
   name = player,
   xp = xp,
   totalxp = xptotal,
@@ -2045,10 +2042,11 @@ function FriendXP:OnCommReceived(a,b,c,d)
    if (strupper(name) ~= strupper(Tname)) then
     --self:Print(name,Tname)
     self:Debug("Sending player is not equal to sent string")
-    return 
+    --return 
    end
   else
-   return -- Names didn't match and not from different realm FIXME
+   self:Debug("Sending player is not equal to sent string")
+   --return -- Names didn't match and not from different realm FIXME
   end
  end
 
@@ -2078,7 +2076,7 @@ function FriendXP:OnCommReceived(a,b,c,d)
   end
 
   end
- newFriends[name] = {
+ friends[name] = {
   name = name,
   xp = tonumber(xp),
   totalxp = tonumber(xptotal),
@@ -2095,17 +2093,17 @@ function FriendXP:OnCommReceived(a,b,c,d)
 end
 
 function FriendXP:RemoveFromActive(friend)
- if (newFriends[friend]) then
-  self:Debug("Removing " .. friend .. " from newFriends table")
-  newFriends[friend] = nil
-  --table.remove(newFriends, friend)
+ if (friends[friend]) then
+  self:Debug("Removing " .. friend .. " from friends table")
+  friends[friend] = nil
+  --table.remove(friends, friend)
  end
 end
 
 function FriendXP:GetLevelByPlayer(friend)
- if (newFriends[friend]) then
-  self:Debug("GetLevelByPlayer returning newFriends entry")
-  return newFriends[friend]["level"]
+ if (friends[friend]) then
+  self:Debug("GetLevelByPlayer returning friends entry")
+  return friends[friend]["level"]
  end
 
  return nil
@@ -2177,8 +2175,8 @@ function FriendXP.LDB.OnEnter(self)
  tooltip:SetFont(fonts["normal"])
  tooltip:AddHeader('Name','Level','XP', 'Rest Bonus', L["XPDisabled"])
  tooltip:AddSeparator()
- for key, value in pairs(newFriends) do
-  local ft = newFriends[key]
+ for key, value in pairs(friends) do
+  local ft = friends[key]
   local xpdisablemsg = "";
   if (ft["xpdisabled"] == 1) then
    xpdisablemsg = "XP Disabled";
@@ -2387,7 +2385,7 @@ function FriendXP:HookBlizzPartyFrames()
    	   self.lastUpdate = self.lastUpdate + elapsed
    	   if (self.lastUpdate < 2) then return end
    	   self.lastUpdate = 0
-   	   if (FriendXP.db.profile.integrateParty == false ) then self:Hide() return end
+   	   if (FriendXP.db.profile.integrateParty == false) then self:Hide() return end
    	   local xp, total, percent, restbonus = FriendXP:GetXPByUnit("party" .. i)
    	   if (xp ~= nil and total ~= nil and percent ~= nil and restbonus ~= nil) then
             if (restbonus > 0) then
