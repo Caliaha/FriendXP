@@ -1,4 +1,4 @@
-## Interface: 70100
+## Interface: 70200
 ## Title: FriendXP
 ## Version: @project-version@
 ## Notes: Tracks friend's experience
