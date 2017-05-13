@@ -1893,6 +1893,7 @@ function FriendXP:HandleIt(input)
  end
 
  InterfaceOptionsFrame_OpenToCategory(self.configFrame)
+ InterfaceOptionsFrame_OpenToCategory(self.configFrame)
 end
 
 function FriendXP:SendXP()
@@ -1960,11 +1961,11 @@ function FriendXP:SendXP()
   end
  end
 
- if (self.db.profile.sendAll == true) then -- Send to all friends, works fine with Friend-RealmName
+ if (self.db.profile.sendAll == true) then -- Send to all friends
   local numberOfFriends, onlineFriends = GetNumFriends() -- Normal friends first
   if (numberOfFriends > 0) then
-   for friendL = 1, numberOfFriends do
-    local nameT, _, _, _, connectedT, _, _ = GetFriendInfo(friendL)
+   for i = 1, numberOfFriends do
+    local nameT, _, _, _, connectedT, _, _ = GetFriendInfo(i)
     if (nameT ~= nil and connectedT) then
 	  self:Debug("Sending whisper to" .. nameT)
 	  self:SendCommMessage("friendxp", msg, "WHISPER", nameT)
@@ -1972,25 +1973,22 @@ function FriendXP:SendXP()
    end
   end
 
-  local numberOfBFriends, BonlineFriends = BNGetNumFriends() -- Then do RealID/BattleTag Friends, doesn't work with connected realms
-  if (numberOfBFriends > 0) then
-   for Bfriend = 1, numberOfBFriends do
-    local presenceID, presenceName, battleTag, isBattleTagPresence, toonName, toonID, client, isOnline, lastOnline, isAFK, isDND, messageText, noteText, isRIDFriend, messageTime, canSoR  = BNGetFriendInfo(Bfriend)
-    self:Debug("Processing BattleNet: " .. presenceName)
-    self:Debug(toonName)
-    if (toonID ~= nil and isOnline == true and presenceID ~= nil) then
-     if (CanCooperateWithGameAccount(presenceID) or UnitInParty(toonName)) then
-      self:Debug("Sent")
-      local _, _, _, realmName, _, _, _, _, _, _, _ = BNGetGameAccountInfo(presenceID)
-      if (realmName == GetRealmName()) then
-       self:SendCommMessage("friendxp", msg, "WHISPER", toonName)
-      end
-     end
-    end
+  local BNFriends, _ = BNGetNumFriends() -- Then do RealID/BattleTag Friends, doesn't work with connected realms
+  if (BNFriends > 0) then
+   for i = 1, BNFriends do
+    local presenceID, presenceName, battleTag, isBattleTagPresence, toonName, toonID, client, isOnline, _, _, _, _, _, isRIDFriend, _, _  = BNGetFriendInfo(i)
+	for gameAccountIndex = 1, BNGetNumFriendGameAccounts(i) do
+     self:Debug("Processing BattleNet: " .. presenceName)
+	 if (isOnline and toonName) then
+	  local _, _, client, realmName, _, _, _, _, _, _, _ = BNGetFriendGameAccountInfo(i, gameAccountIndex)
+	  if (client == BNET_CLIENT_WOW and realmName == GetRealmName() and CanCooperateWithGameAccount(toonID)) then
+	   self:Debug("Sent")
+	   self:SendCommMessage("friendxp", msg, "WHISPER", toonName)
+	  end
+	 end
+	end
    end
   end
-
-  return
  end
 end
 
@@ -2020,7 +2018,7 @@ function FriendXP:OnCommReceived(a,b,c,d)
 
  local success, name, xp, xptotal, level, restbonus, xpdisabled, class, maxlevel = self:Deserialize(b)
  if (not success) then
-  self:Debug("Couldn't not deserialize message " .. name)
+  self:Debug("Could not deserialize message")
   return
  end
 
@@ -2135,8 +2133,8 @@ function FriendXP:FriendCheck(realm, friend)
  if (onlineFriends > 0) then
   for i = 1, onlineFriends do
    local name, level, class, area, connected, status, note = GetFriendInfo(i)
-   self:Print("FriendINFO: ", name, level, class, area, connected, status, note)
-   self:Print(realm, friend)
+   --self:Print("FriendINFO: ", name, level, class, area, connected, status, note)
+   --self:Print(realm, friend)
    if (name == friend and realm == GetRealmName()) then
     return true
    end
@@ -2145,7 +2143,7 @@ function FriendXP:FriendCheck(realm, friend)
  if (BonlineFriends > 0) then
   for Bfriend = 1,BonlineFriends do
   local presenceID, presenceName, battleTag, isBattleTagPresence, toonName, toonID, client, isOnline, lastOnline, isAFK, isDND, messageText, noteText, isRIDFriend, messageTime, canSoR  = BNGetFriendInfo(Bfriend)
-   if (CanCooperateWithGameAccount(presenceID) or UnitInParty(toonName)) then
+   if (toonID and CanCooperateWithGameAccount(toonID) or UnitInParty(toonName)) then
     if (toonName == friend) then
      return true
     end
