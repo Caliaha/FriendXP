@@ -2110,7 +2110,7 @@ end
 function FriendXP:DoLevelUp(friend, level)
  UIErrorsFrame:AddMessage(friend .. " has reached level " .. level .. "!", 1.0, 1.0, 0.0, 1, 5)
  --PlaySoundFile("Sound\\interface\\LevelUp.wav")
- PlaySoundKitID(888) -- Level up sound
+ PlaySound(888) -- Level up sound
  return
 end
 
