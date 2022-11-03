@@ -1,8 +1,9 @@
-## Interface: 70300
+## Interface: 100000
 ## Title: FriendXP
 ## Version: @project-version@
 ## Notes: Tracks friend's experience
 ## Author: Bartruby of Cairne
+## X-Curse-Project-ID: 32260
 ## OptionalDeps: Ace3
 ## X-Embeds: Ace3
 ## SavedVariables: FriendXPDB
