@@ -1031,7 +1031,7 @@ function FriendXP:CreateFriendXPBar() -- Should merge its update functions here 
  xpbar.rest:SetValue(0)
 
  -- For moving
- xpbar.move = CreateFrame("Frame", nil, UIParent)
+ xpbar.move = CreateFrame("Frame", nil, UIParent, "BackdropTemplate")
  xpbar.move:SetBackdrop({bgFile = LSM:Fetch("background", "Solid")})
  xpbar.move:SetBackdropColor(1,0,0,0.75)
  xpbar.move:SetAllPoints(true)
@@ -1189,18 +1189,18 @@ end
 
 function FriendXP:SetupMiniframe()
  if (Miniframe == nil) then
-  Miniframe = CreateFrame("Frame", nil, UIParent)
+  Miniframe = CreateFrame("Frame", nil, UIParent, "BackdropTemplate")
   Miniframe:SetBackdrop({bgFile = LSM:Fetch("background", self.db.profile.miniframe.texture), edgeFile = LSM:Fetch("border", self.db.profile.miniframe.border.border), tile = false, tileSize = 0, edgeSize = self.db.profile.miniframe.border.bordersize, insets = { left = self.db.profile.miniframe.border.inset.left, right = self.db.profile.miniframe.border.inset.right, top = self.db.profile.miniframe.border.inset.top, bottom = self.db.profile.miniframe.border.inset.bottom }})
-  Miniframe.flash = CreateFrame("Frame", nil, Miniframe)
+  Miniframe.flash = CreateFrame("Frame", nil, Miniframe, "BackdropTemplate")
   Miniframe.flash:Hide()
-  Miniframe.incoming = CreateFrame("Frame", nil, Miniframe)
+  Miniframe.incoming = CreateFrame("Frame", nil, Miniframe, "BackdropTemplate")
   Miniframe.incoming:Hide()
   --Miniframe.flash:SetScript("OnUpdate", function(self) local alpha = self:GetAlpha(); alpha = alpha - 0.03; if (alpha < 0) then alpha = 0; end; self:SetAlpha(alpha); if (self:GetAlpha() <= 0) then self:SetAlpha(1); self:Hide(); end; end)
   Miniframe.flash:SetScript("OnUpdate", function(self) FriendXP:FlashFrame(self) end)
   Miniframe.incoming:SetScript("OnUpdate", function(self) FriendXP:FlashFrame(self) end)
 
  -- For moving
-  Miniframe.move = CreateFrame("Frame", nil, UIParent)
+  Miniframe.move = CreateFrame("Frame", nil, UIParent, "BackdropTemplate")
   Miniframe.move:SetBackdrop({bgFile = LSM:Fetch("background", "Solid")})
   Miniframe.move:SetBackdropColor(1,0,0,0.75)
   Miniframe.move:SetAllPoints(Miniframe)
@@ -1424,8 +1424,8 @@ function FriendXP:GetCreateXPBar(key)
    frame.xp = CreateFrame("StatusBar", nil, frame)
    frame.bg = frame:CreateTexture(nil, 'BACKGROUND')
    frame.text = frame.xp:CreateFontString(nil, 'OVERLAY')
-   frame.buttonbg = CreateFrame("Frame", nil, frame)
-   frame.button = CreateFrame("Button", nil, frame.buttonbg)
+   frame.buttonbg = CreateFrame("Frame", nil, frame, "BackdropTemplate")
+   frame.button = CreateFrame("Button", nil, frame.buttonbg, "BackdropTemplate")
    frame.button:RegisterForClicks("AnyDown")
    frame.button:ClearAllPoints()
    frame.button:SetAllPoints(true)
@@ -1454,8 +1454,8 @@ function FriendXP:GetFrame(name) -- Player name is new frame ref thingy
   frame.xp:SetAllPoints(true)
   frame.bg = frame:CreateTexture(nil, 'BACKGROUND')
   frame.text = frame.xp:CreateFontString(nil, 'OVERLAY')
-  frame.buttonbg = CreateFrame("Frame", nil, frame)
-  frame.button = CreateFrame("Button", nil, frame.buttonbg)
+  frame.buttonbg = CreateFrame("Frame", nil, frame, "BackdropTemplate")
+  frame.button = CreateFrame("Button", nil, frame.buttonbg, "BackdropTemplate")
   frame.button:RegisterForClicks("AnyDown")
   frame.button:ClearAllPoints()
   frame.button:SetAllPoints(true)
@@ -1721,15 +1721,15 @@ end
 function FriendXP:CreateFonts()
  self.fonts["class"] = { }
  fonts["header"] = CreateFont("FriendXPFontHeader")
- fonts["header"]:SetFont(LSM:Fetch("font", FriendXP.db.profile.tooltip.header.font),self.db.profile.tooltip.header.size)
+ fonts["header"]:SetFont(LSM:Fetch("font", FriendXP.db.profile.tooltip.header.font), self.db.profile.tooltip.header.size, "")
  fonts["header"]:SetTextColor(self.db.profile.tooltip.header.color.r, self.db.profile.tooltip.header.color.g, self.db.profile.tooltip.header.color.b)
  fonts["normal"] = CreateFont("FriendXPFontNormal")
- fonts["normal"]:SetFont(LSM:Fetch("font", FriendXP.db.profile.tooltip.normal.font), self.db.profile.tooltip.normal.size)
+ fonts["normal"]:SetFont(LSM:Fetch("font", FriendXP.db.profile.tooltip.normal.font), self.db.profile.tooltip.normal.size, "")
  fonts["normal"]:SetTextColor(self.db.profile.tooltip.normal.color.r, self.db.profile.tooltip.normal.color.g, self.db.profile.tooltip.normal.color.b)
 --RAID_CLASS_COLORS[class]["r"], RAID_CLASS_COLORS[class]["g"], RAID_CLASS_COLORS[class]["b"]
  for i, v in pairs(RAID_CLASS_COLORS) do
   self.fonts["class"][i] = CreateFont("FriendXPClassColor" .. i)
-  self.fonts["class"][i]:SetFont(LSM:Fetch("font", self.db.profile.tooltip.normal.font), self.db.profile.tooltip.normal.size)
+  self.fonts["class"][i]:SetFont(LSM:Fetch("font", self.db.profile.tooltip.normal.font), self.db.profile.tooltip.normal.size, "")
   self.fonts["class"][i]:SetTextColor(RAID_CLASS_COLORS[i]["r"], RAID_CLASS_COLORS[i]["g"], RAID_CLASS_COLORS[i]["b"])
  end
 end
@@ -1740,7 +1740,7 @@ function FriendXP:UpdateFonts(thing, size, r, g, b)
   return
  end
  local things = self.db.profile.tooltip
- fonts[thing]:SetFont(LSM:Fetch("font", things[thing]["font"]), size)
+ fonts[thing]:SetFont(LSM:Fetch("font", things[thing]["font"]), size, "")
  fonts[thing]:SetTextColor(r, g, b)
 end
 
@@ -1750,13 +1750,13 @@ function FriendXP:UpdateFont(thing)
  end
 
  local things = self.db.profile.tooltip
- fonts[thing]:SetFont(LSM:Fetch("font", things[thing]["font"]), things[thing]["size"])
+ fonts[thing]:SetFont(LSM:Fetch("font", things[thing]["font"]), things[thing]["size"], "")
  fonts[thing]:SetTextColor(things[thing]["color"]["r"], things[thing]["color"]["g"], things[thing]["color"]["b"])
 end
 
 function FriendXP:UpdateFONTS() -- Going do something about all these update fonts someday
  for i, v in pairs(RAID_CLASS_COLORS) do
-  self.fonts["class"][i]:SetFont(LSM:Fetch("font", self.db.profile.tooltip.normal.font), self.db.profile.tooltip.normal.size)
+  self.fonts["class"][i]:SetFont(LSM:Fetch("font", self.db.profile.tooltip.normal.font), self.db.profile.tooltip.normal.size, "")
   self.fonts["class"][i]:SetTextColor(RAID_CLASS_COLORS[i]["r"], RAID_CLASS_COLORS[i]["g"], RAID_CLASS_COLORS[i]["b"])
  end
 end
@@ -1917,7 +1917,7 @@ function FriendXP:SendXP()
  local xptotal = UnitXPMax("player");
  local level = UnitLevel("player");
  local _, class = UnitClass("player");
- local maxlevel = MAX_PLAYER_LEVEL_TABLE[GetExpansionLevel()]
+ local maxlevel = GetMaxLevelForLatestExpansion() --MAX_PLAYER_LEVEL_TABLE[GetExpansionLevel()]
  friends[player] = {
   name = player,
   xp = xp,
@@ -1962,10 +1962,10 @@ function FriendXP:SendXP()
  end
 
  if (self.db.profile.sendAll == true) then -- Send to all friends
-  local numberOfFriends, onlineFriends = GetNumFriends() -- Normal friends first
+  local numberOfFriends, onlineFriends = C_FriendList.GetNumFriends() -- Normal friends first
   if (numberOfFriends > 0) then
    for i = 1, numberOfFriends do
-    local nameT, _, _, _, connectedT, _, _ = GetFriendInfo(i)
+    local nameT, _, _, _, connectedT, _, _ = C_FriendList.GetFriendInfo(i)
     if (nameT ~= nil and connectedT) then
 	  self:Debug("Sending whisper to" .. nameT)
 	  self:SendCommMessage("friendxp", msg, "WHISPER", nameT)
@@ -1973,14 +1973,16 @@ function FriendXP:SendXP()
    end
   end
 
-  local BNFriends, _ = BNGetNumFriends() -- Then do RealID/BattleTag Friends, doesn't work with connected realms
+  --[[local BNFriends, _ = BNGetNumFriends() -- Then do RealID/BattleTag Friends, doesn't work with connected realms
   if (BNFriends > 0) then
    for i = 1, BNFriends do
-    local presenceID, presenceName, battleTag, isBattleTagPresence, toonName, toonID, client, isOnline, _, _, _, _, _, isRIDFriend, _, _  = BNGetFriendInfo(i)
-	for gameAccountIndex = 1, BNGetNumFriendGameAccounts(i) do
-     self:Debug("Processing BattleNet: " .. presenceName)
+    local accountInfo = C_BattleNet.GetFriendAccountInfo(i)
+	--presenceID, presenceName, battleTag, isBattleTagPresence, toonName, toonID, client, isOnline, _, _, _, _, _, isRIDFriend, _, _ 
+	
+	for gameAccountIndex = 1, C_BattleNet.GetFriendNumGameAccounts(i) do
+     self:Debug("Processing BattleNet: " .. accountInfo['accountName'])
 	 if (isOnline and toonName) then
-	  local _, _, client, realmName, _, _, _, _, _, _, _ = BNGetFriendGameAccountInfo(i, gameAccountIndex)
+	  local _, _, client, realmName, _, _, _, _, _, _, _ = C_BattleNet.BNGetFriendGameAccountInfo(i, gameAccountIndex)
 	  if (client == BNET_CLIENT_WOW and realmName == GetRealmName() and CanCooperateWithGameAccount(toonID)) then
 	   self:Debug("Sent")
 	   self:SendCommMessage("friendxp", msg, "WHISPER", toonName)
@@ -1988,7 +1990,7 @@ function FriendXP:SendXP()
 	 end
 	end
    end
-  end
+  end ]]--
  end
 end
 
@@ -2335,20 +2337,22 @@ function FriendXP:HookBlizzPartyFrames()
   if (partyXPFrames[i]) then partyXPFrames[i]:Hide() end
  end
  if (not self.db.profile.integrateParty) then return end
- for i = 1, 4 do
-  if (partyXPFrames[i] == nil) then
-   local partyXP = CreateFrame("Frame", nil, _G["PartyMemberFrame" .. i])
-   partyXP:SetBackdrop({bgFile = LSM:Fetch("background", "Solid")})
+ for memberFrame in PartyFrame.PartyMemberFramePool:EnumerateActive() do
+	local i = memberFrame.layoutIndex
+	
+	if (partyXPFrames[i] == nil) then
+	local partyXP = CreateFrame("Frame", nil, memberFrame, "BackdropTemplate")
+	partyXP:SetBackdrop({bgFile = LSM:Fetch("background", "Solid")})
    partyXP:SetBackdropColor(0,0,0,.5)
-   partyXP:SetPoint("TOPLEFT", _G["PartyMemberFrame" .. i], "TOPLEFT", 46, -31)
+   partyXP:SetPoint("TOPLEFT", memberFrame, "TOPLEFT", 46, -40)
    partyXP:SetWidth(66)
    partyXP:SetHeight(4)
-   partyXP.frame = CreateFrame("Frame", nil, partyXP)
+   partyXP.frame = CreateFrame("Frame", nil, partyXP, BackdropTemplateMixin and "BackdropTemplate")
    partyXP.frame:SetBackdrop({bgFile = LSM:Fetch("background", "PartyXPBar"), tile = false, tileSize = 0, insets = { left = 0, right = 0, top = 0, bottom = 0 }})
    partyXP.frame:ClearAllPoints()
    partyXP.frame:SetHeight(32)
    partyXP.frame:SetWidth(128)
-   partyXP.frame:SetPoint("TOPLEFT", _G["PartyMemberFrame" .. i], "TOPLEFT", 42, -30)
+   partyXP.frame:SetPoint("TOPLEFT", memberFrame, "TOPLEFT", 42, -39)
 
    partyXP.restbar = CreateFrame("StatusBar", nil, partyXP)
    partyXP.restbar:SetAllPoints(true)
@@ -2367,7 +2371,7 @@ function FriendXP:HookBlizzPartyFrames()
    partyXP.xpbar:SetValue(200)
 
    partyXP.text = partyXP.xpbar:CreateFontString(nil, 'OVERLAY')
-   partyXP.text:SetFont(LSM:Fetch("font", "Friz Quadrata TT"), 10)
+   partyXP.text:SetFont(LSM:Fetch("font", "Friz Quadrata TT"), 10, "")
    partyXP.text:SetAllPoints(true)
 
    partyXP.lastUpdate = 0
@@ -2448,12 +2452,12 @@ function FriendXP:HandlePlayerXP(xp, xptotal, restbonus)
  
  if (not self.playerxp) then
   --_G["PlayerFrame"]:SetFrameLevel(_G["PlayerFrame"]:GetFrameLevel() + 1)
-  local frame = CreateFrame("Frame", nil, _G["PlayerFrame"])
+  local frame = CreateFrame("Frame", nil, _G["PlayerFrame"], "BackdropTemplate")
   frame:SetBackdrop({bgFile = LSM:Fetch("statusbar", "Blizzard")})
   frame:SetBackdropColor(self.db.profile.pf.bgcolor.r, self.db.profile.pf.bgcolor.g, self.db.profile.pf.bgcolor.b, self.db.profile.pf.bgcolor.a)
-  frame:SetPoint("TOPLEFT", _G["PlayerFrame"], "TOPLEFT", 110, -24)
+  frame:SetPoint("TOPLEFT", _G["PlayerFrame"], "TOPLEFT", 80, -28)
   frame:SetWidth(116)
-  frame:SetHeight(16)
+  frame:SetHeight(12)
   frame.rest = CreateFrame("StatusBar", nil, frame)
   frame.rest:SetAllPoints(true)
   frame.rest:SetStatusBarTexture(LSM:Fetch("statusbar", "Blizzard"))
