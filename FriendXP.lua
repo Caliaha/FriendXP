@@ -1957,7 +1957,7 @@ function FriendXP:SendXP()
 
   if (channel) then
    self:Debug("Sending to " .. channel)
-   self:SendCommMessage("friendxp", msg, channel, friend)
+   self:SendCommMessage("friendxp", msg, channel)
   end
  end
 
